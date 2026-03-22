@@ -194,12 +194,12 @@ android {
     }
 
     compileOptions {
-        sourceCompatibility JavaVersion.VERSION_11
-        targetCompatibility JavaVersion.VERSION_11
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
     }
 
     kotlinOptions {
-        jvmTarget = "11"
+        jvmTarget = "1.8"
     }
 
     buildFeatures {
@@ -363,4 +363,11 @@ dependencies {
     implementation('org.glassfish.tyrus.bundles:tyrus-standalone-client:1.21') {
         exclude module: 'javax.inject'
     }
+
+    // مكتبات الواجهة الديناميكية لطوافة الوطني (المعدلة)
+    implementation 'com.google.code.gson:gson:2.10.1'
+    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3'
+    implementation 'androidx.cardview:cardview:1.0.0'
+    implementation 'androidx.lifecycle:lifecycle-viewmodel-ktx:2.7.0'
+    implementation 'androidx.lifecycle:lifecycle-runtime-ktx:2.7.0'
 }
