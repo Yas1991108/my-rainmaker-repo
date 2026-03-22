@@ -1,32 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+    ملف أمان الشبكة — يسمح بـ HTTP لجميع الـ IPs المحلية
+    ESP32 قد تحصل على أي IP من الراوتر (مثال: 192.168.0.128)
+    لذلك نسمح بـ HTTP لجميع نطاقات الشبكات الخاصة
+-->
 <network-security-config>
 
-    <!--
-        السماح بـ HTTP (بدون HTTPS) للاتصالات المحلية مع ESP32
-        يشمل:
-          - وضع AP:  192.168.4.x  (شبكة ESP32 المباشرة)
-          - وضع STA: 192.168.0.x / 192.168.1.x / 10.x.x.x (شبكة الراوتر)
-          - mDNS: good8luck.local
-    -->
-
-    <!-- السماح بـ HTTP للـ IP المحلية في وضع AP (ESP32 SoftAP) -->
-    <domain-config cleartextTrafficPermitted="true">
-        <domain includeSubdomains="false">192.168.4.1</domain>
-    </domain-config>
-
-    <!-- السماح بـ HTTP لنطاق شبكة الراوتر (وضع STA) -->
-    <domain-config cleartextTrafficPermitted="true">
-        <domain includeSubdomains="false">192.168.0.1</domain>
-        <domain includeSubdomains="false">192.168.1.1</domain>
-    </domain-config>
-
-    <!-- السماح بـ HTTP لـ mDNS (good8luck.local) -->
-    <domain-config cleartextTrafficPermitted="true">
-        <domain includeSubdomains="true">local</domain>
-    </domain-config>
-
-    <!-- باقي الاتصالات الخارجية (RainMaker Cloud) تبقى HTTPS فقط -->
-    <base-config cleartextTrafficPermitted="false">
+    <!-- السماح بـ HTTP لجميع الاتصالات (للتطوير والاختبار) -->
+    <!-- هذا ضروري لأن ESP32 يمكن أن تحصل على أي IP -->
+    <base-config cleartextTrafficPermitted="true">
         <trust-anchors>
             <certificates src="system" />
         </trust-anchors>
