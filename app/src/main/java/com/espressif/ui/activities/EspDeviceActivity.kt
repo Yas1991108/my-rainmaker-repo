@@ -88,6 +88,10 @@ import java.text.SimpleDateFormat
 import java.util.Arrays
 import java.util.Calendar
 
+// ===== استيراد طوافة الوطني =====
+import com.espressif.ui.dynamic.UiConfigStorage
+import com.espressif.ui.dynamic.DynamicDeviceActivity
+
 class EspDeviceActivity : AppCompatActivity() {
 
     companion object {
@@ -131,7 +135,7 @@ class EspDeviceActivity : AppCompatActivity() {
     private var subscriptionHelper: SubscriptionHelper? = null
     private var matterSubscriptionActive = false
     private var lastMatterUpdateTime = 0L
-    private val MATTER_UPDATE_THROTTLE_MS = 100L // Throttle updates to max once per 100ms
+    private val MATTER_UPDATE_THROTTLE_MS = 100L
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -149,6 +153,26 @@ class EspDeviceActivity : AppCompatActivity() {
         } else {
             nodeId = device!!.nodeId
             Log.d(TAG, "NODE ID : $nodeId")
+
+            // =====================================================
+            // طوافة الوطني: إعادة توجيه للواجهة الديناميكية
+            // إذا كان هذا الجهاز يملك واجهة ديناميكية محفوظة،
+            // افتح DynamicDeviceActivity بدلاً من هذه الشاشة
+            // =====================================================
+            val dynamicStorage = UiConfigStorage(applicationContext)
+            if (!nodeId.isNullOrEmpty() && dynamicStorage.hasConfigForNode(nodeId!!)) {
+                Log.d(TAG, "[TAWAFA] Dynamic config found for node $nodeId — redirecting")
+                DynamicDeviceActivity.start(
+                    context    = this,
+                    nodeId     = nodeId!!,
+                    serviceKey = "",
+                    deviceIp   = "",
+                    cloudMode  = false
+                )
+                finish()
+                return
+            }
+            // =====================================================
 
             nodeType = espApp!!.nodeMap[nodeId]!!.newNodeType
             nodeStatus = espApp!!.nodeMap[nodeId]!!.nodeStatus
@@ -246,7 +270,6 @@ class EspDeviceActivity : AppCompatActivity() {
         getNodeDetails()
         EventBus.getDefault().register(this)
 
-        // Setup Matter subscriptions if device is MATTER_LOCAL
         if (nodeStatus == AppConstants.NODE_STATUS_MATTER_LOCAL) {
             setupMatterSubscriptions()
         }
@@ -426,7 +449,6 @@ class EspDeviceActivity : AppCompatActivity() {
                 val serviceParamJson = JsonObject()
                 serviceParamJson.addProperty("MTCtlCMD", 2)
 
-                // Get service name
                 var serviceName = AppConstants.KEY_MATTER_CTL
                 val service = getService(
                     espApp?.nodeMap?.get(nodeId)!!,
@@ -651,27 +673,19 @@ class EspDeviceActivity : AppCompatActivity() {
                                                 "Successfully received credentials from assume role"
                                             )
 
-                                            // Set up a custom credentials provider with the credentials
                                             val credentialsProvider = IoTCredentialsProvider(
                                                 accessKey,
                                                 secretKey,
                                                 sessionToken
                                             )
 
-                                            // Override the credentials provider in WebRtcConstants
                                             WebRtcConstants.setCredentialsProvider(
                                                 credentialsProvider
                                             )
 
-                                            // Parse ID token to get region from iss field
                                             try {
                                                 val jwt = JWT(idToken)
                                                 val issuer = jwt.getClaim("iss").asString()
-                                                // Extract region from issuer URL
-                                                // Supports multiple patterns:
-                                                // 1. https://cognito-idp.us-east-1.amazonaws.com/...
-                                                // 2. https://esp-rainmaker-oauth-*-dev.s3.us-east-1.amazonaws.com
-                                                // 3. https://esp-rainmaker-oauth-*-dev.s3.cn-north-1.amazonaws.com.cn
                                                 val regex =
                                                     "(?:cognito-idp\\.|\\bs3\\.)([^.]+)\\.amazonaws\\.com(?:\\.cn)?".toRegex()
                                                 val matchResult = issuer?.let { regex.find(it) }
@@ -1162,7 +1176,6 @@ class EspDeviceActivity : AppCompatActivity() {
         window.clearFlags(WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE)
     }
 
-    // Matter Subscription Methods
     private fun setupMatterSubscriptions() {
         if (matterSubscriptionActive || matterNodeId.isNullOrEmpty() || !espApp!!.chipClientMap.containsKey(
                 matterNodeId
@@ -1179,8 +1192,7 @@ class EspDeviceActivity : AppCompatActivity() {
                 subscriptionHelper = SubscriptionHelper(chipClient)
                 val deviceId = BigInteger(matterNodeId, 16).toLong()
                 val connectedDevicePtr = chipClient.getConnectedDevicePointer(deviceId)
-                
-                // Create subscriptions based on device type
+
                 val subscriptions = subscriptionHelper!!.createSubscriptionsForDevice(
                     device?.deviceType ?: "esp.device.switch",
                     AppConstants.ENDPOINT_1.toLong()
@@ -1191,14 +1203,12 @@ class EspDeviceActivity : AppCompatActivity() {
                     "Created ${subscriptions.size} subscriptions for device type: ${device?.deviceType}"
                 )
 
-                // Setup subscription callbacks
                 val reportCallback = createMatterReportCallback()
                 val subscriptionEstablishedCallback =
                     SubscriptionHelper.SubscriptionEstablishedCallbackForDevice(deviceId)
                 val resubscriptionAttemptCallback =
                     SubscriptionHelper.ResubscriptionAttemptCallbackForDevice(deviceId)
 
-                // Start subscriptions
                 subscriptionHelper!!.subscribeToMultipleAttributes(
                     connectedDevicePtr,
                     subscriptions,
@@ -1214,17 +1224,17 @@ class EspDeviceActivity : AppCompatActivity() {
             }
         }
     }
-    
+
     private fun stopMatterSubscriptions() {
         if (!matterSubscriptionActive) {
             return
         }
-        
+
         Log.d(TAG, "Stopping Matter subscriptions")
         matterSubscriptionActive = false
         subscriptionHelper = null
     }
-    
+
     private fun createMatterReportCallback(): ReportCallback {
         return object : ReportCallback {
 
@@ -1248,7 +1258,6 @@ class EspDeviceActivity : AppCompatActivity() {
                                     "Attribute update - Endpoint: $endpointId, Cluster: $clusterId, Attribute: $attributeId, Value: ${attribute.value}"
                                 )
 
-                                // Update UI based on cluster and attribute with throttling
                                 val currentTime = System.currentTimeMillis()
                                 if (currentTime - lastMatterUpdateTime > MATTER_UPDATE_THROTTLE_MS) {
                                     lastMatterUpdateTime = currentTime
@@ -1297,8 +1306,8 @@ class EspDeviceActivity : AppCompatActivity() {
             var paramUpdated = false
 
             when (clusterId) {
-                6L -> { // OnOff Cluster
-                    if (attributeId == 0L) { // OnOff attribute
+                6L -> {
+                    if (attributeId == 0L) {
                         for (param in paramList!!) {
                             if (param.paramType == AppConstants.PARAM_TYPE_POWER || param.name.equals(
                                     "Power",
@@ -1315,8 +1324,8 @@ class EspDeviceActivity : AppCompatActivity() {
                     }
                 }
 
-                8L -> { // Level Control Cluster
-                    if (attributeId == 0L) { // CurrentLevel attribute
+                8L -> {
+                    if (attributeId == 0L) {
                         for (param in paramList!!) {
                             if (param.paramType == AppConstants.PARAM_TYPE_BRIGHTNESS || param.name.equals(
                                     "Brightness",
@@ -1324,8 +1333,7 @@ class EspDeviceActivity : AppCompatActivity() {
                                 )
                             ) {
                                 val intValue = value as? Int ?: 0
-                                val percentage =
-                                    (intValue * 100) / 254 // Convert from 0-254 to 0-100
+                                val percentage = (intValue * 100) / 254
                                 param.value = percentage.toDouble()
                                 param.labelValue = percentage.toString()
                                 paramUpdated = true
@@ -1335,9 +1343,9 @@ class EspDeviceActivity : AppCompatActivity() {
                     }
                 }
 
-                768L -> { // Color Control Cluster
+                768L -> {
                     when (attributeId) {
-                        0L -> { // CurrentHue attribute
+                        0L -> {
                             for (param in paramList!!) {
                                 if (param.paramType == AppConstants.PARAM_TYPE_HUE || param.name.equals(
                                         "Hue",
@@ -1345,8 +1353,7 @@ class EspDeviceActivity : AppCompatActivity() {
                                     )
                                 ) {
                                     val intValue = value as? Int ?: 0
-                                    val hueValue =
-                                        (intValue * 360) / 254 // Convert from 0-254 to 0-360
+                                    val hueValue = (intValue * 360) / 254
                                     param.value = hueValue.toDouble()
                                     param.labelValue = hueValue.toString()
                                     paramUpdated = true
@@ -1355,7 +1362,7 @@ class EspDeviceActivity : AppCompatActivity() {
                             }
                         }
 
-                        1L -> { // CurrentSaturation attribute
+                        1L -> {
                             for (param in paramList!!) {
                                 if (param.paramType == AppConstants.PARAM_TYPE_SATURATION || param.name.equals(
                                         "Saturation",
@@ -1363,8 +1370,7 @@ class EspDeviceActivity : AppCompatActivity() {
                                     )
                                 ) {
                                     val intValue = value as? Int ?: 0
-                                    val percentage =
-                                        (intValue * 100) / 254 // Convert from 0-254 to 0-100
+                                    val percentage = (intValue * 100) / 254
                                     param.value = percentage.toDouble()
                                     param.labelValue = percentage.toString()
                                     paramUpdated = true
@@ -1373,7 +1379,7 @@ class EspDeviceActivity : AppCompatActivity() {
                             }
                         }
 
-                        7L -> { // ColorTemperature attribute
+                        7L -> {
                             for (param in paramList!!) {
                                 if (param.paramType == AppConstants.PARAM_TYPE_CCT || param.name.equals(
                                         AppConstants.PARAM_CCT,
@@ -1381,22 +1387,16 @@ class EspDeviceActivity : AppCompatActivity() {
                                     )
                                 ) {
                                     val miredsValue = value as? Int ?: 0
-                                    // Convert mireds to Kelvin: K = 1,000,000 / M
                                     val kelvinValue = if (miredsValue > 0) {
                                         1000000 / miredsValue
                                     } else {
                                         0
                                     }
-
-                                    // Clamp Kelvin value between 2000K and 7000K
                                     val clampedKelvin = kelvinValue.coerceIn(2000, 7000)
-
                                     Log.d(
                                         TAG,
                                         "CCT: Mireds=$miredsValue, Raw Kelvin=$kelvinValue, Clamped Kelvin=$clampedKelvin"
                                     )
-
-                                    // Store the clamped Kelvin value
                                     param.value = clampedKelvin.toDouble()
                                     param.labelValue = clampedKelvin.toString()
                                     paramUpdated = true
@@ -1407,8 +1407,8 @@ class EspDeviceActivity : AppCompatActivity() {
                     }
                 }
 
-                1026L -> { // Temperature Measurement Cluster
-                    if (attributeId == 0L) { // MeasuredValue attribute
+                1026L -> {
+                    if (attributeId == 0L) {
                         for (param in paramList!!) {
                             if (param.paramType == AppConstants.PARAM_TYPE_TEMPERATURE || param.name.equals(
                                     "Temperature",
@@ -1416,8 +1416,7 @@ class EspDeviceActivity : AppCompatActivity() {
                                 )
                             ) {
                                 val intValue = value as? Int ?: 0
-                                val temperatureValue =
-                                    intValue / 100.0 // Convert from centi-degrees to degrees
+                                val temperatureValue = intValue / 100.0
                                 param.value = temperatureValue
                                 param.labelValue = String.format("%.1f", temperatureValue)
                                 paramUpdated = true
@@ -1428,12 +1427,12 @@ class EspDeviceActivity : AppCompatActivity() {
                 }
 
 //                257L -> { // Door Lock Cluster
-//                    if (attributeId == 0L) { // LockState attribute
+//                    if (attributeId == 0L) {
 //                        for (param in paramList!!) {
 //                            if (param.paramType == AppConstants.PARAM_TYPE_LOCK_STATE || param.name.equals("Lock", true)) {
 //                                val intValue = value as? Int ?: 0
 //                                val isLocked = intValue == 1
-//                                param.setSwitchStatus(!isLocked) // UI shows unlocked state as true
+//                                param.setSwitchStatus(!isLocked)
 //                                param.labelValue = if (isLocked) "Locked" else "Unlocked"
 //                                paramUpdated = true
 //                                break
@@ -1442,9 +1441,9 @@ class EspDeviceActivity : AppCompatActivity() {
 //                    }
 //                }
 
-                513L -> { // Thermostat Cluster
+                513L -> {
                     when (attributeId) {
-                        0L -> { // LocalTemperature attribute
+                        0L -> {
                             for (param in paramList!!) {
                                 if (param.paramType == AppConstants.PARAM_TYPE_TEMPERATURE || param.name.equals(
                                         "Temperature",
@@ -1462,7 +1461,7 @@ class EspDeviceActivity : AppCompatActivity() {
                             }
                         }
 
-                        17L -> { // OccupiedCoolingSetpoint
+                        17L -> {
                             for (param in paramList!!) {
                                 if (param.name.equals(
                                         AppConstants.PARAM_COOLING_POINT,
@@ -1480,7 +1479,7 @@ class EspDeviceActivity : AppCompatActivity() {
                             }
                         }
 
-                        18L -> { // OccupiedHeatingSetpoint
+                        18L -> {
                             for (param in paramList!!) {
                                 if (param.name.equals(
                                         AppConstants.PARAM_HEATING_POINT,
@@ -1498,7 +1497,7 @@ class EspDeviceActivity : AppCompatActivity() {
                             }
                         }
 
-                        28L -> { // SystemMode
+                        28L -> {
                             for (param in paramList!!) {
                                 if (param.name.equals(
                                         AppConstants.PARAM_SYSTEM_MODE,
@@ -1522,8 +1521,8 @@ class EspDeviceActivity : AppCompatActivity() {
                     }
                 }
 
-                514L -> { // Fan Control Cluster
-                    if (attributeId == 0L) { // FanMode attribute
+                514L -> {
+                    if (attributeId == 0L) {
                         for (param in paramList!!) {
                             if (param.paramType == AppConstants.PARAM_TYPE_SPEED || param.name.equals(
                                     "Speed",
@@ -1550,12 +1549,10 @@ class EspDeviceActivity : AppCompatActivity() {
 
             if (paramUpdated) {
                 Log.d(TAG, "Parameter updated from Matter subscription - refreshing UI")
-                // Find the specific parameter position and update only that item
                 val paramPosition = findParameterPosition(clusterId, attributeId)
                 if (paramPosition >= 0) {
                     paramAdapter?.notifyItemChanged(paramPosition)
                 } else {
-                    // Fallback to full refresh if position not found
                     paramAdapter?.notifyDataSetChanged()
                 }
             }
@@ -1571,7 +1568,6 @@ class EspDeviceActivity : AppCompatActivity() {
         for (i in paramList!!.indices) {
             val param = paramList!![i]
 
-            // Map cluster/attribute to param types for position finding
             val matches = when (clusterId) {
                 6L -> if (attributeId == 0L) param.paramType == AppConstants.PARAM_TYPE_POWER || param.name.equals(
                     "Power",
