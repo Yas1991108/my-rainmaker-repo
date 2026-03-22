@@ -1,6 +1,5 @@
 // =============================================================
 // المسار: app/src/main/java/com/espressif/ui/dynamic/DynamicDeviceActivity.kt
-// النسخة المصححة — إصلاح استدعاء EspMdnsResolver
 // =============================================================
 
 package com.espressif.ui.dynamic
@@ -20,12 +19,13 @@ import kotlinx.coroutines.*
 class DynamicDeviceActivity : AppCompatActivity() {
 
     companion object {
-        private const val TAG = "DynamicDeviceActivity"
+        private const val TAG          = "DynamicDeviceActivity"
+        private const val MDNS_NAME    = "Good8luck"
 
-        const val EXTRA_NODE_ID     = "node_id"
-        const val EXTRA_SERVICE_KEY = "service_key"
-        const val EXTRA_DEVICE_IP   = "device_ip"
-        const val EXTRA_CLOUD_MODE  = "cloud_mode"
+        const val EXTRA_NODE_ID        = "node_id"
+        const val EXTRA_SERVICE_KEY    = "service_key"
+        const val EXTRA_DEVICE_IP      = "device_ip"
+        const val EXTRA_CLOUD_MODE     = "cloud_mode"
 
         fun start(
             context:    Context,
@@ -45,91 +45,64 @@ class DynamicDeviceActivity : AppCompatActivity() {
         }
     }
 
-    // ===== المتغيرات =====
     private lateinit var storage:       UiConfigStorage
     private lateinit var apiClient:     LocalApiClient
     private var renderer:               DynamicWidgetRenderer? = null
     private var uiConfig:               UiConfig?              = null
     private var nodeId:                 String                 = ""
     private var serviceKey:             String                 = ""
-    private var isCloudMode:            Boolean                = false
     private var pollingJob:             Job?                   = null
+    private var resolvedIp:             String                 = ""
 
-    // ===== Views =====
     private lateinit var scrollView:    ScrollView
     private lateinit var contentHolder: LinearLayout
     private lateinit var loadingBar:    ProgressBar
     private lateinit var statusBar:     TextView
-    private lateinit var modeIndicator: TextView
 
-    // ============================================================
-    // onCreate
-    // ============================================================
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        nodeId      = intent.getStringExtra(EXTRA_NODE_ID)      ?: ""
-        serviceKey  = intent.getStringExtra(EXTRA_SERVICE_KEY)  ?: ""
-        val deviceIp = intent.getStringExtra(EXTRA_DEVICE_IP)   ?: ""
-        isCloudMode  = intent.getBooleanExtra(EXTRA_CLOUD_MODE, false)
+        nodeId       = intent.getStringExtra(EXTRA_NODE_ID)      ?: ""
+        serviceKey   = intent.getStringExtra(EXTRA_SERVICE_KEY)  ?: ""
+        val deviceIp = intent.getStringExtra(EXTRA_DEVICE_IP)    ?: ""
 
         storage   = UiConfigStorage(this)
         apiClient = LocalApiClient()
 
-        // إذا أُرسل IP مباشرة، استخدمه فوراً
         if (deviceIp.isNotEmpty()) {
+            resolvedIp = deviceIp
             apiClient.updateBaseUrl(deviceIp)
         }
 
         buildLayout()
-        loadAndRenderConfig()
+        resolveIpThenRender()
     }
 
-    // ============================================================
-    // بناء الـ Layout برمجياً (بدون XML)
-    // ============================================================
     private fun buildLayout() {
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setBackgroundColor(Color.parseColor("#F5F5F5"))
+            setBackgroundColor(Color.parseColor("#F0F4F8"))
         }
 
-        // شريط الوضع
-        modeIndicator = TextView(this).apply {
-            text = if (isCloudMode) "☁️ وضع السحابة — متصل"
-                   else            "📡 وضع AP — تحكم مباشر"
-            setTextColor(Color.WHITE)
-            setBackgroundColor(
-                if (isCloudMode) Color.parseColor("#1565C0")
-                else             Color.parseColor("#E65100")
-            )
-            gravity  = Gravity.CENTER
-            setPadding(0, dp(8), 0, dp(8))
-            textSize = 13f
-        }
-        root.addView(modeIndicator)
-
-        // شريط الحالة
         statusBar = TextView(this).apply {
-            text = "جاري التحميل..."
+            text       = ""
             setTextColor(Color.parseColor("#546E7A"))
-            setPadding(dp(16), dp(6), dp(16), dp(6))
-            textSize = 12f
+            setPadding(dp(16), dp(4), dp(16), dp(4))
+            textSize   = 11f
+            visibility = android.view.View.GONE
         }
         root.addView(statusBar)
 
-        // شريط التحميل
         loadingBar = ProgressBar(
             this, null, android.R.attr.progressBarStyleHorizontal
         ).apply {
             isIndeterminate = true
             layoutParams    = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, dp(3)
+                LinearLayout.LayoutParams.MATCH_PARENT, dp(2)
             )
         }
         root.addView(loadingBar)
 
-        // المحتوى
         contentHolder = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
         }
@@ -149,78 +122,70 @@ class DynamicDeviceActivity : AppCompatActivity() {
     }
 
     // ============================================================
-    // تحميل الـ Config وعرضه
+    // دائماً نحل IP أولاً قبل عرض أي شيء
+    // هذا يصحح مشكلة "الأزرار لا تعمل" لأن IP قد يكون
+    // 192.168.0.128 (STA) وليس 192.168.4.1 (AP)
     // ============================================================
-    private fun loadAndRenderConfig() {
+    private fun resolveIpThenRender() {
+        lifecycleScope.launch {
+            try {
+                val fullUrl = EspMdnsResolver.resolveEspUrl(
+                    context  = this@DynamicDeviceActivity,
+                    mdnsName = MDNS_NAME
+                )
+                resolvedIp = fullUrl.removePrefix("http://").removeSuffix(":8080")
+                apiClient.updateBaseUrl(resolvedIp)
+                Log.d(TAG, "[IP] Resolved: $resolvedIp")
+            } catch (e: Exception) {
+                Log.w(TAG, "[IP] Resolution failed, using default: ${e.message}")
+            }
+            loadConfig()
+        }
+    }
+
+    private suspend fun loadConfig() {
         uiConfig = when {
             nodeId.isNotEmpty()     -> storage.loadConfigByNodeId(nodeId)
             serviceKey.isNotEmpty() -> storage.loadConfig(serviceKey)
             else                    -> null
         }
 
-        if (uiConfig == null) {
-            fetchConfigFromEsp()
+        if (uiConfig != null) {
+            withContext(Dispatchers.Main) { renderConfig(uiConfig!!) }
         } else {
-            renderConfig(uiConfig!!)
-        }
-    }
-
-    // ============================================================
-    // جلب الـ Config من ESP32 مع اكتشاف IP تلقائياً (mDNS)
-    // ============================================================
-    private fun fetchConfigFromEsp() {
-        setStatus("⏳ جاري الاتصال بالجهاز...")
-
-        lifecycleScope.launch {
-            // ===== الخطوة 1: اكتشف IP الـ ESP32 تلقائياً =====
-            // resolveEspUrl هي suspend function — تُستدعى داخل coroutine فقط
-            if (!isCloudMode) {
-                try {
-                    // تُعيد URL كامل مثل: "http://192.168.4.1:8080"
-                    val fullUrl = EspMdnsResolver.resolveEspUrl(
-                        context  = this@DynamicDeviceActivity,
-                        mdnsName = "good8luck"
-                    )
-                    // استخرج الـ IP فقط من الـ URL
-                    // fullUrl شكله: "http://192.168.X.X:8080"
-                    val resolvedIp = fullUrl
-                        .removePrefix("http://")
-                        .removeSuffix(":8080")
-
-                    apiClient.updateBaseUrl(resolvedIp)
-                    Log.d(TAG, "[mDNS] Resolved IP: $resolvedIp")
-                    setStatus("📡 جهاز موجود على: $resolvedIp")
-                } catch (e: Exception) {
-                    Log.w(TAG, "[mDNS] Failed, using default AP IP: ${e.message}")
-                    // سيستخدم apiClient الـ IP الافتراضي 192.168.4.1
-                }
-            }
-
-            // ===== الخطوة 2: جلب JSON الواجهة =====
+            withContext(Dispatchers.Main) { setStatus("⏳ جاري جلب واجهة الجهاز...") }
             apiClient.fetchUiConfig().fold(
                 onSuccess = { json ->
-                    val key = serviceKey.ifEmpty { nodeId }
+                    val key = serviceKey.ifEmpty { nodeId }.ifEmpty { "Tawafa_1" }
                     storage.saveConfig(key, json)
                     if (nodeId.isNotEmpty()) storage.bindNodeId(key, nodeId)
                     uiConfig = storage.loadConfig(key)
-                    uiConfig?.let { renderConfig(it) }
-                        ?: setStatus("❌ JSON غير صالح")
+                    withContext(Dispatchers.Main) {
+                        uiConfig?.let { renderConfig(it) }
+                            ?: setStatus("❌ بيانات الجهاز غير صالحة")
+                    }
                 },
                 onFailure = {
-                    Log.e(TAG, "Fetch failed: ${it.message}")
-                    setStatus("❌ تعذر الاتصال: ${it.message}")
-                    loadingBar.visibility = android.view.View.GONE
+                    Log.e(TAG, "Config fetch failed: ${it.message}")
+                    withContext(Dispatchers.Main) {
+                        loadingBar.visibility = android.view.View.GONE
+                        setStatus("❌ تعذر الاتصال: ${it.message}")
+                    }
                 }
             )
         }
     }
 
-    // ============================================================
-    // بناء الواجهة من UiConfig
-    // ============================================================
     private fun renderConfig(config: UiConfig) {
-        supportActionBar?.title = config.deviceName
-        loadingBar.visibility   = android.view.View.GONE
+        supportActionBar?.apply {
+            title    = config.deviceName
+            subtitle = if (resolvedIp.isNotEmpty() && !resolvedIp.startsWith("192.168.4"))
+                           "متصل — $resolvedIp"
+                       else "وضع AP المباشر"
+        }
+
+        loadingBar.visibility = android.view.View.GONE
+        hideStatus()
 
         try {
             scrollView.setBackgroundColor(Color.parseColor(config.theme.background))
@@ -237,47 +202,26 @@ class DynamicDeviceActivity : AppCompatActivity() {
 
         contentHolder.removeAllViews()
         contentHolder.addView(renderer!!.buildFullScreen())
-        setStatus("✅ جاهز")
         startPolling(config)
     }
 
-    // ============================================================
-    // معالج تغيير Widget
-    // ============================================================
     private fun handleWidgetChange(widgetId: String, newValue: Any, config: UiConfig) {
         val widget = config.sections
             .flatMap { it.widgets }
             .find { it.id == widgetId } ?: return
 
-        if (isCloudMode && widget.rmakerDevice.isNotEmpty()) {
-            sendViaRainMaker(widget, newValue)
-        } else if (widget.localSet.isNotEmpty()) {
+        if (widget.localSet.isNotEmpty()) {
             lifecycleScope.launch {
-                setStatus("⏳ إرسال...")
                 apiClient.sendWidgetCommand(widget.localSet, newValue).fold(
-                    onSuccess = { setStatus("✅ تم") },
-                    onFailure = { setStatus("❌ فشل: ${it.message}") }
+                    onSuccess = { /* تم */ },
+                    onFailure = {
+                        withContext(Dispatchers.Main) { setStatus("❌ فشل: ${it.message}") }
+                    }
                 )
             }
         }
     }
 
-    // ============================================================
-    // إرسال عبر RainMaker Cloud
-    // ============================================================
-    private fun sendViaRainMaker(widget: UiWidget, value: Any) {
-        try {
-            Log.d(TAG, "[RainMaker] ${widget.rmakerDevice}.${widget.rmakerParam} = $value")
-            setStatus("☁️ مُرسَل للسحابة")
-        } catch (e: Exception) {
-            Log.e(TAG, "RainMaker send error: ${e.message}")
-            setStatus("❌ خطأ في السحابة")
-        }
-    }
-
-    // ============================================================
-    // تحديث دوري للقراءات
-    // ============================================================
     private fun startPolling(config: UiConfig) {
         pollingJob?.cancel()
         pollingJob = lifecycleScope.launch {
@@ -310,11 +254,15 @@ class DynamicDeviceActivity : AppCompatActivity() {
         }
     }
 
-    // ============================================================
-    // مساعدات
-    // ============================================================
     private fun setStatus(msg: String) {
-        runOnUiThread { statusBar.text = msg }
+        runOnUiThread {
+            statusBar.text       = msg
+            statusBar.visibility = android.view.View.VISIBLE
+        }
+    }
+
+    private fun hideStatus() {
+        statusBar.visibility = android.view.View.GONE
     }
 
     private fun dp(v: Int) = (v * resources.displayMetrics.density).toInt()
