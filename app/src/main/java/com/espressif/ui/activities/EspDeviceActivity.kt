@@ -16,9 +16,8 @@ package com.espressif.ui.activities
 
 import android.Manifest
 import android.content.Intent
-
 import android.content.pm.PackageManager
-
+import android.graphics.Color
 import android.graphics.Typeface
 import android.os.Bundle
 import android.os.Handler
@@ -27,12 +26,13 @@ import android.text.Spanned
 import android.text.TextUtils
 import android.text.style.StyleSpan
 import android.util.Log
+import android.view.Gravity
 import android.view.Menu
 import android.view.MenuItem
 import android.view.View
+import android.view.ViewGroup
 import android.view.WindowManager
-import android.widget.TextView
-import android.widget.Toast
+import android.widget.*
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.content.res.AppCompatResources
 import androidx.core.app.ActivityCompat
@@ -67,6 +67,10 @@ import com.espressif.rainmaker.R
 import com.espressif.rainmaker.databinding.ActivityEspDeviceBinding
 import com.espressif.ui.adapters.AttrParamAdapter
 import com.espressif.ui.adapters.ParamAdapter
+import com.espressif.ui.dynamic.DynamicWidgetRenderer
+import com.espressif.ui.dynamic.EspMdnsResolver
+import com.espressif.ui.dynamic.LocalApiClient
+import com.espressif.ui.dynamic.UiConfigStorage
 import com.espressif.ui.models.Device
 import com.espressif.ui.models.Param
 import com.espressif.ui.models.Service
@@ -79,7 +83,7 @@ import com.google.android.gms.threadnetwork.ThreadNetwork
 import com.google.android.gms.threadnetwork.ThreadNetworkCredentials
 import com.google.android.material.snackbar.Snackbar
 import com.google.gson.JsonObject
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.*
 import org.greenrobot.eventbus.EventBus
 import org.greenrobot.eventbus.Subscribe
 import org.greenrobot.eventbus.ThreadMode
@@ -87,10 +91,6 @@ import java.math.BigInteger
 import java.text.SimpleDateFormat
 import java.util.Arrays
 import java.util.Calendar
-
-// ===== استيراد طوافة الوطني =====
-import com.espressif.ui.dynamic.UiConfigStorage
-import com.espressif.ui.dynamic.DynamicDeviceActivity
 
 class EspDeviceActivity : AppCompatActivity() {
 
@@ -100,6 +100,7 @@ class EspDeviceActivity : AppCompatActivity() {
         private const val UPDATE_INTERVAL = 5000
         private const val UI_UPDATE_INTERVAL = 4500
         private const val KEY_LOCK_SETUP_DONE = "lock_setup_done"
+        private const val MDNS_NAME = "Good8luck"
     }
 
     private lateinit var binding: ActivityEspDeviceBinding
@@ -131,12 +132,21 @@ class EspDeviceActivity : AppCompatActivity() {
     private var shouldGetParams = true
     private var isUpdateView = true
 
-    // Matter subscription related variables
+    // ===== متغيرات الواجهة الديناميكية =====
+    private var isDynamicMode = false
+    private var dynamicPollingJob: Job? = null
+    private var dynamicRenderer: DynamicWidgetRenderer? = null
+    private var dynamicApiClient: LocalApiClient? = null
+
+    // Matter
     private var subscriptionHelper: SubscriptionHelper? = null
     private var matterSubscriptionActive = false
     private var lastMatterUpdateTime = 0L
     private val MATTER_UPDATE_THROTTLE_MS = 100L
 
+    // ============================================================
+    // onCreate
+    // ============================================================
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityEspDeviceBinding.inflate(layoutInflater)
@@ -154,25 +164,20 @@ class EspDeviceActivity : AppCompatActivity() {
             nodeId = device!!.nodeId
             Log.d(TAG, "NODE ID : $nodeId")
 
-            // =====================================================
-            // طوافة الوطني: إعادة توجيه للواجهة الديناميكية
-            // إذا كان هذا الجهاز يملك واجهة ديناميكية محفوظة،
-            // افتح DynamicDeviceActivity بدلاً من هذه الشاشة
-            // =====================================================
-            val dynamicStorage = UiConfigStorage(applicationContext)
-            if (!nodeId.isNullOrEmpty() && dynamicStorage.hasConfigForNode(nodeId!!)) {
-                Log.d(TAG, "[TAWAFA] Dynamic config found for node $nodeId — redirecting")
-                DynamicDeviceActivity.start(
-                    context    = this,
-                    nodeId     = nodeId!!,
-                    serviceKey = "",
-                    deviceIp   = "",
-                    cloudMode  = false
-                )
-                finish()
+            // ============================================================
+            // طوافة الوطني: فحص هل يوجد config ديناميكي لهذا الجهاز
+            // إذا نعم → اعرض الواجهة الديناميكية داخل نفس الـ Activity
+            // إذا لا → اعرض الواجهة القياسية كالمعتاد
+            // ============================================================
+            val storage = UiConfigStorage(applicationContext)
+            if (!nodeId.isNullOrEmpty() && storage.hasConfigForNode(nodeId!!)) {
+                Log.d(TAG, "[TAWAFA] Dynamic config found — switching to dynamic mode")
+                isDynamicMode = true
+                setupDynamicModeToolbar()
+                showDynamicUi()
                 return
             }
-            // =====================================================
+            // ============================================================
 
             nodeType = espApp!!.nodeMap[nodeId]!!.newNodeType
             nodeStatus = espApp!!.nodeMap[nodeId]!!.nodeStatus
@@ -188,17 +193,14 @@ class EspDeviceActivity : AppCompatActivity() {
             }
 
             if (nodeType == AppConstants.NODE_TYPE_PURE_MATTER || nodeType == AppConstants.NODE_TYPE_RM_MATTER) {
-
                 if (espApp!!.matterRmNodeIdMap.containsKey(nodeId)) {
                     matterNodeId = espApp!!.matterRmNodeIdMap[nodeId]
                 }
-
                 if (!TextUtils.isEmpty(matterNodeId)
                     && espApp!!.availableMatterDevices.contains(matterNodeId)
                     && espApp!!.matterDeviceInfoMap.containsKey(matterNodeId)
                 ) {
                     val deviceMatterInfo = espApp!!.matterDeviceInfoMap[matterNodeId]
-
                     if (!deviceMatterInfo.isNullOrEmpty()) {
                         for ((endpoint, _, serverClusters) in deviceMatterInfo) {
                             if (endpoint == 0 && serverClusters.isNotEmpty()) {
@@ -240,7 +242,6 @@ class EspDeviceActivity : AppCompatActivity() {
 
             if (isCtlAvailable) {
                 val params = controllerService!!.params
-
                 if (params != null && !params.isEmpty()) {
                     for (param in params) {
                         if (AppConstants.PARAM_TYPE_MATTER_NODE_ID == param.paramType) {
@@ -262,8 +263,206 @@ class EspDeviceActivity : AppCompatActivity() {
         }
     }
 
+    // ============================================================
+    // ===== منطقة الواجهة الديناميكية =====
+    // ============================================================
+
+    // إعداد الـ Toolbar لوضع الواجهة الديناميكية
+    private fun setupDynamicModeToolbar() {
+        setSupportActionBar(binding.toolbarLayout.toolbar)
+        supportActionBar?.apply {
+            setDisplayHomeAsUpEnabled(true)
+            setDisplayShowHomeEnabled(true)
+            title = device?.userVisibleName?.takeIf { it.isNotEmpty() }
+                ?: device?.deviceName ?: "طوافة الوطني"
+        }
+        binding.toolbarLayout.toolbar.navigationIcon =
+            AppCompatResources.getDrawable(this, R.drawable.ic_arrow_left)
+        binding.toolbarLayout.toolbar.setNavigationOnClickListener { finish() }
+    }
+
+    // عرض الواجهة الديناميكية داخل نفس الـ binding layout
+    private fun showDynamicUi() {
+        // أخفِ الواجهة القياسية تماماً
+        binding.espDeviceLayout.root.visibility = View.GONE
+        binding.rlProgress.visibility = View.GONE
+
+        // أنشئ container للواجهة الديناميكية وأضفه لـ root
+        val dynamicContainer = buildDynamicContainer()
+        val rootLayout = binding.root as ViewGroup
+        rootLayout.addView(dynamicContainer)
+
+        // ابدأ تحميل الـ config وعرض الواجهة
+        lifecycleScope.launch {
+            loadAndShowDynamic(dynamicContainer)
+        }
+    }
+
+    // بناء container الواجهة الديناميكية
+    private fun buildDynamicContainer(): LinearLayout {
+        return LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setBackgroundColor(Color.parseColor("#F0F4F8"))
+            layoutParams = ViewGroup.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT
+            )
+            tag = "dynamic_container"
+        }
+    }
+
+    // تحميل Config وعرض الواجهة
+    private suspend fun loadAndShowDynamic(container: LinearLayout) {
+        val storage = UiConfigStorage(applicationContext)
+
+        // شريط التحميل
+        val progressBar = ProgressBar(
+            this, null, android.R.attr.progressBarStyleHorizontal
+        ).apply {
+            isIndeterminate = true
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, dp(2)
+            )
+        }
+        withContext(Dispatchers.Main) { container.addView(progressBar) }
+
+        // الخطوة 1: حل IP الـ ESP32 تلقائياً
+        dynamicApiClient = LocalApiClient()
+        try {
+            val fullUrl = EspMdnsResolver.resolveEspUrl(
+                context  = this@EspDeviceActivity,
+                mdnsName = MDNS_NAME
+            )
+            val resolvedIp = fullUrl.removePrefix("http://").removeSuffix(":8080")
+            dynamicApiClient!!.updateBaseUrl(resolvedIp)
+            Log.d(TAG, "[TAWAFA] IP resolved: $resolvedIp")
+        } catch (e: Exception) {
+            Log.w(TAG, "[TAWAFA] IP resolution failed: ${e.message}")
+        }
+
+        // الخطوة 2: تحميل الـ Config
+        var uiConfig = storage.loadConfigByNodeId(nodeId ?: "")
+
+        if (uiConfig == null) {
+            // جلب من ESP32
+            dynamicApiClient!!.fetchUiConfig().fold(
+                onSuccess = { json ->
+                    val key = nodeId ?: "Tawafa_1"
+                    storage.saveConfig(key, json)
+                    storage.bindNodeId(key, nodeId ?: "")
+                    uiConfig = storage.loadConfig(key)
+                },
+                onFailure = {
+                    Log.e(TAG, "[TAWAFA] Fetch failed: ${it.message}")
+                }
+            )
+        }
+
+        // الخطوة 3: رسم الواجهة
+        withContext(Dispatchers.Main) {
+            container.removeView(progressBar)
+
+            if (uiConfig != null) {
+                try {
+                    container.setBackgroundColor(
+                        Color.parseColor(uiConfig!!.theme.background)
+                    )
+                } catch (_: Exception) {}
+
+                // عنوان الصفحة = اسم الجهاز من الـ Config
+                supportActionBar?.title = uiConfig!!.deviceName
+
+                dynamicRenderer = DynamicWidgetRenderer(
+                    context         = this@EspDeviceActivity,
+                    config          = uiConfig!!,
+                    apiClient       = dynamicApiClient!!,
+                    onWidgetChanged = { widgetId, newValue ->
+                        handleDynamicWidgetChange(widgetId, newValue, uiConfig!!)
+                    }
+                )
+
+                val scrollView = ScrollView(this@EspDeviceActivity).apply {
+                    layoutParams = LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f
+                    )
+                    addView(dynamicRenderer!!.buildFullScreen())
+                }
+                container.addView(scrollView)
+
+                // بدء التحديث الدوري
+                startDynamicPolling(uiConfig!!)
+
+            } else {
+                // لا يوجد config — عرض رسالة خطأ
+                container.addView(TextView(this@EspDeviceActivity).apply {
+                    text    = "❌ تعذر الاتصال بالجهاز\nتأكد من اتصال الهاتف بنفس الشبكة"
+                    gravity = Gravity.CENTER
+                    setTextColor(Color.parseColor("#E53935"))
+                    textSize = 14f
+                    setPadding(dp(24), dp(48), dp(24), dp(24))
+                })
+            }
+        }
+    }
+
+    // معالج تغيير الـ widget
+    private fun handleDynamicWidgetChange(widgetId: String, newValue: Any, config: com.espressif.ui.dynamic.UiConfig) {
+        val widget = config.sections
+            .flatMap { it.widgets }
+            .find { it.id == widgetId } ?: return
+
+        if (widget.localSet.isNotEmpty()) {
+            lifecycleScope.launch {
+                dynamicApiClient?.sendWidgetCommand(widget.localSet, newValue)?.fold(
+                    onSuccess = { Log.d(TAG, "[TAWAFA] Command sent: $widgetId = $newValue") },
+                    onFailure = { Log.e(TAG, "[TAWAFA] Command failed: ${it.message}") }
+                )
+            }
+        }
+    }
+
+    // تحديث دوري للقراءات
+    private fun startDynamicPolling(config: com.espressif.ui.dynamic.UiConfig) {
+        dynamicPollingJob?.cancel()
+        dynamicPollingJob = lifecycleScope.launch {
+            while (isActive) {
+                val endpoints = config.sections
+                    .flatMap { it.widgets }
+                    .filter { it.localGet.isNotEmpty() && it.pollMs > 0 }
+                    .groupBy { it.localGet }
+
+                endpoints.forEach { (endpoint, widgets) ->
+                    val result = when {
+                        endpoint.contains("/data")  -> dynamicApiClient?.fetchData()
+                        endpoint.contains("/state") -> dynamicApiClient?.fetchState()
+                        else                        -> dynamicApiClient?.fetchData()
+                    }
+                    result?.onSuccess { json ->
+                        widgets.forEach { widget ->
+                            if (widget.localGetKey.isNotEmpty() && json.has(widget.localGetKey)) {
+                                val rawVal = json.get(widget.localGetKey)
+                                withContext(Dispatchers.Main) {
+                                    dynamicRenderer?.updateWidgetValue(widget.id, rawVal)
+                                }
+                            }
+                        }
+                    }
+                }
+                delay(2000L)
+            }
+        }
+    }
+
+    private fun dp(v: Int) = (v * resources.displayMetrics.density).toInt()
+
+    // ============================================================
+    // ===== الكود الأصلي (الواجهة القياسية) =====
+    // ============================================================
+
     override fun onResume() {
         super.onResume()
+        if (isDynamicMode) return  // لا تشغّل الكود القياسي في وضع الواجهة الديناميكية
+
         EspApplication.region = ""
         paramAdapter?.updateVideoStreamingState()
         paramAdapter?.notifyDataSetChanged()
@@ -292,40 +491,42 @@ class EspDeviceActivity : AppCompatActivity() {
 
     override fun onPause() {
         super.onPause()
+        if (isDynamicMode) return
         stopUpdateValueTask()
         stopMatterSubscriptions()
         EventBus.getDefault().unregister(this)
     }
 
     override fun onDestroy() {
-        stopUpdateValueTask()
-        stopMatterSubscriptions()
+        dynamicPollingJob?.cancel()
+        if (!isDynamicMode) {
+            stopUpdateValueTask()
+            stopMatterSubscriptions()
+        }
         super.onDestroy()
     }
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
+        if (isDynamicMode) return false  // لا قائمة في وضع الواجهة الديناميكية
         super.onCreateOptionsMenu(menu)
         menu.add(Menu.NONE, 1, Menu.NONE, R.string.btn_info).setIcon(R.drawable.ic_node_info)
-            .setShowAsAction(
-                MenuItem.SHOW_AS_ACTION_ALWAYS
-            )
+            .setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS)
         return true
     }
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        if (isDynamicMode) {
+            if (item.itemId == android.R.id.home) { finish(); return true }
+            return super.onOptionsItemSelected(item)
+        }
         when (item.itemId) {
-            1 -> {
-                goToNodeDetailsActivity()
-                return true
-            }
-
+            1 -> { goToNodeDetailsActivity(); return true }
             else -> return super.onOptionsItemSelected(item)
         }
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
-
         if (requestCode == NODE_DETAILS_ACTIVITY_REQUEST && resultCode == RESULT_OK) {
             finish()
         }
@@ -333,10 +534,15 @@ class EspDeviceActivity : AppCompatActivity() {
 
     @Subscribe(threadMode = ThreadMode.MAIN)
     fun onEvent(event: UpdateEvent) {
+        if (isDynamicMode) return
         Log.d(TAG, "Update Event Received : " + event.eventType)
-
         when (event.eventType) {
-            UpdateEventType.EVENT_DEVICE_ADDED, UpdateEventType.EVENT_DEVICE_REMOVED, UpdateEventType.EVENT_STATE_CHANGE_UPDATE, UpdateEventType.EVENT_LOCAL_DEVICE_UPDATE, UpdateEventType.EVENT_DEVICE_ONLINE, UpdateEventType.EVENT_DEVICE_OFFLINE -> {}
+            UpdateEventType.EVENT_DEVICE_ADDED,
+            UpdateEventType.EVENT_DEVICE_REMOVED,
+            UpdateEventType.EVENT_STATE_CHANGE_UPDATE,
+            UpdateEventType.EVENT_LOCAL_DEVICE_UPDATE,
+            UpdateEventType.EVENT_DEVICE_ONLINE,
+            UpdateEventType.EVENT_DEVICE_OFFLINE -> {}
             UpdateEventType.EVENT_DEVICE_STATUS_UPDATE -> {
                 val currentTime = System.currentTimeMillis()
                 if (BuildConfig.isContinuousUpdateEnable) {
@@ -348,7 +554,6 @@ class EspDeviceActivity : AppCompatActivity() {
                     updateUi()
                 }
             }
-
             UpdateEventType.EVENT_MATTER_DEVICE_CONNECTIVITY -> updateUi()
             UpdateEventType.EVENT_ADD_DEVICE_TIME_OUT -> TODO()
             UpdateEventType.EVENT_CTRL_CONFIG_DONE -> TODO()
@@ -362,33 +567,19 @@ class EspDeviceActivity : AppCompatActivity() {
     }
 
     fun isNodeOnline(): Boolean {
-        var isNodeOnline = false
-
-        if (Arrays.asList(
-                AppConstants.NODE_STATUS_ONLINE,
-                AppConstants.NODE_STATUS_LOCAL,
-                AppConstants.NODE_STATUS_MATTER_LOCAL,
-                AppConstants.NODE_STATUS_REMOTELY_CONTROLLABLE
-            )
-                .contains(nodeStatus)
-        ) {
-            isNodeOnline = true
-        }
-        return isNodeOnline
+        return Arrays.asList(
+            AppConstants.NODE_STATUS_ONLINE,
+            AppConstants.NODE_STATUS_LOCAL,
+            AppConstants.NODE_STATUS_MATTER_LOCAL,
+            AppConstants.NODE_STATUS_REMOTELY_CONTROLLABLE
+        ).contains(nodeStatus)
     }
 
-    fun setIsUpdateView(isUpdateView: Boolean) {
-        this.isUpdateView = isUpdateView
-    }
-
-    fun setLastUpdateRequestTime(lastUpdateRequestTime: Long) {
-        this.lastUpdateRequestTime = lastUpdateRequestTime
-    }
+    fun setIsUpdateView(isUpdateView: Boolean) { this.isUpdateView = isUpdateView }
+    fun setLastUpdateRequestTime(lastUpdateRequestTime: Long) { this.lastUpdateRequestTime = lastUpdateRequestTime }
 
     fun startUpdateValueTask() {
-        if (!TextUtils.isEmpty(nodeType) && nodeType == AppConstants.NODE_TYPE_PURE_MATTER && nodeStatus != AppConstants.NODE_STATUS_REMOTELY_CONTROLLABLE) {
-            return
-        }
+        if (!TextUtils.isEmpty(nodeType) && nodeType == AppConstants.NODE_TYPE_PURE_MATTER && nodeStatus != AppConstants.NODE_STATUS_REMOTELY_CONTROLLABLE) return
         shouldGetParams = true
         handler!!.removeCallbacks(updateValuesTask)
         handler!!.postDelayed(updateValuesTask, UPDATE_INTERVAL.toLong())
@@ -424,7 +615,6 @@ class EspDeviceActivity : AppCompatActivity() {
     }
 
     private fun initViews() {
-
         setToolbar()
 
         val linearLayoutManager = LinearLayoutManager(applicationContext)
@@ -444,57 +634,33 @@ class EspDeviceActivity : AppCompatActivity() {
         binding.espDeviceLayout.swipeContainer.setOnRefreshListener(OnRefreshListener { getNodeDetails() })
 
         binding.espDeviceLayout.btnUpdate.setOnClickListener(View.OnClickListener {
-
             if (isCtlAvailable) {
                 val serviceParamJson = JsonObject()
                 serviceParamJson.addProperty("MTCtlCMD", 2)
-
                 var serviceName = AppConstants.KEY_MATTER_CTL
-                val service = getService(
-                    espApp?.nodeMap?.get(nodeId)!!,
-                    AppConstants.SERVICE_TYPE_MATTER_CONTROLLER
-                )
-                if (service != null && !TextUtils.isEmpty(service.name)) {
-                    serviceName = service.name
-                }
-
+                val service = getService(espApp?.nodeMap?.get(nodeId)!!, AppConstants.SERVICE_TYPE_MATTER_CONTROLLER)
+                if (service != null && !TextUtils.isEmpty(service.name)) serviceName = service.name
                 val body = JsonObject()
                 body.add(serviceName, serviceParamJson)
-
                 val networkApiManager = NetworkApiManager(espApp)
                 networkApiManager.updateParamValue(nodeId, body, object : ApiResponseListener {
-                    override fun onSuccess(data: Bundle?) {
-                    }
-
-                    override fun onResponseFailure(exception: java.lang.Exception) {
-                    }
-
-                    override fun onNetworkFailure(exception: java.lang.Exception) {
-                    }
+                    override fun onSuccess(data: Bundle?) {}
+                    override fun onResponseFailure(exception: java.lang.Exception) {}
+                    override fun onNetworkFailure(exception: java.lang.Exception) {}
                 })
             } else {
                 val id = BigInteger(matterNodeId, 16)
                 val deviceId = id.toLong()
                 if (espApp!!.chipClientMap.containsKey(matterNodeId)) {
-                    val espClusterHelper = ControllerClusterHelper(
-                        espApp!!.chipClientMap[matterNodeId]!!,
-                        espApp!!
-                    )
-                    espClusterHelper.sendUpdateDeviceListEventAsync(
-                        deviceId,
-                        AppConstants.ENDPOINT_0,
-                        AppConstants.CONTROLLER_CLUSTER_ID_HEX
-                    )
+                    val espClusterHelper = ControllerClusterHelper(espApp!!.chipClientMap[matterNodeId]!!, espApp!!)
+                    espClusterHelper.sendUpdateDeviceListEventAsync(deviceId, AppConstants.ENDPOINT_0, AppConstants.CONTROLLER_CLUSTER_ID_HEX)
                 }
             }
         })
 
         binding.espDeviceLayout.btnUpdateRmaker.setOnClickListener(View.OnClickListener {
             if (isRmakerCtlAvailable) {
-                val intent = Intent(
-                    this@EspDeviceActivity,
-                    ControllerLoginActivity::class.java
-                )
+                val intent = Intent(this@EspDeviceActivity, ControllerLoginActivity::class.java)
                 intent.putExtra(AppConstants.KEY_NODE_ID, nodeId)
                 intent.putExtra(AppConstants.KEY_IS_RMAKER_CONTROLLER, true)
                 startActivity(intent)
@@ -502,14 +668,8 @@ class EspDeviceActivity : AppCompatActivity() {
         })
 
         binding.espDeviceLayout.tvControllerLogin.setOnClickListener(View.OnClickListener {
-            var intent = Intent(
-                this,
-                ControllerLoginActivity::class.java
-            )
-
-            if (isCtlAvailable) {
-                intent = Intent(this, GroupSelectionActivity::class.java)
-            }
+            var intent = Intent(this, ControllerLoginActivity::class.java)
+            if (isCtlAvailable) intent = Intent(this, GroupSelectionActivity::class.java)
             intent.putExtra(AppConstants.KEY_NODE_ID, nodeId)
             intent.putExtra(AppConstants.KEY_IS_CTRL_SERVICE, isCtlAvailable)
             startActivity(intent)
@@ -535,12 +695,7 @@ class EspDeviceActivity : AppCompatActivity() {
                 val fullText = "Controller (Unauthorised)"
                 val spannable = SpannableString(fullText)
                 val startIndex = fullText.indexOf(" (Unauthorised)")
-                spannable.setSpan(
-                    StyleSpan(Typeface.ITALIC),
-                    startIndex,
-                    fullText.length,
-                    Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
-                )
+                spannable.setSpan(StyleSpan(Typeface.ITALIC), startIndex, fullText.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
                 binding.espDeviceLayout.tvControllerLabel.text = spannable
             }
         } else if (isCtlAvailable) {
@@ -551,56 +706,32 @@ class EspDeviceActivity : AppCompatActivity() {
             binding.espDeviceLayout.rlMatterController.visibility = View.GONE
         }
 
-        if (isRmakerCtlAvailable) {
-            binding.espDeviceLayout.rlRmakerController.visibility = View.VISIBLE
-        } else {
-            binding.espDeviceLayout.rlRmakerController.visibility = View.GONE
-        }
+        if (isRmakerCtlAvailable) binding.espDeviceLayout.rlRmakerController.visibility = View.VISIBLE
+        else binding.espDeviceLayout.rlRmakerController.visibility = View.GONE
 
-        if (isTbrClusterAvailable) {
-            binding.espDeviceLayout.rlThreadBr.visibility = View.VISIBLE
-        } else {
-            binding.espDeviceLayout.rlThreadBr.visibility = View.GONE
-        }
+        if (isTbrClusterAvailable) binding.espDeviceLayout.rlThreadBr.visibility = View.VISIBLE
+        else binding.espDeviceLayout.rlThreadBr.visibility = View.GONE
 
-        val tbrService: Service? =
-            getService(espApp!!.nodeMap[nodeId]!!, AppConstants.SERVICE_TYPE_TBR)
+        val tbrService: Service? = getService(espApp!!.nodeMap[nodeId]!!, AppConstants.SERVICE_TYPE_TBR)
         if (tbrService != null) {
             binding.espDeviceLayout.rlUpdateThreadDataset.visibility = View.VISIBLE
             binding.espDeviceLayout.rlMergeThreadDataset.visibility = View.VISIBLE
-
             binding.espDeviceLayout.btnUpdateDataset.setOnClickListener {
                 var activeDataset = ""
-                for (p in tbrService.params) {
-                    if (AppConstants.PARAM_TYPE_ACTIVE_DATASET == p.paramType) {
-                        activeDataset = p.labelValue
-                    }
-                }
-
+                for (p in tbrService.params) { if (AppConstants.PARAM_TYPE_ACTIVE_DATASET == p.paramType) activeDataset = p.labelValue }
                 if (TextUtils.isEmpty(activeDataset)) {
                     val intent = Intent(this@EspDeviceActivity, ThreadBRActivity::class.java)
                     intent.putExtra(AppConstants.KEY_NODE_ID, nodeId)
-                    intent.putExtra(
-                        AppConstants.KEY_TBR_ACTIVITY_REASON,
-                        ThreadBRActivity.UPDATE_DATASET
-                    )
+                    intent.putExtra(AppConstants.KEY_TBR_ACTIVITY_REASON, ThreadBRActivity.UPDATE_DATASET)
                     startActivity(intent)
                 } else {
-                    Toast.makeText(
-                        this@EspDeviceActivity,
-                        "Thread active dataset is already created.",
-                        Toast.LENGTH_LONG
-                    ).show()
+                    Toast.makeText(this@EspDeviceActivity, "Thread active dataset is already created.", Toast.LENGTH_LONG).show()
                 }
             }
-
             binding.espDeviceLayout.btnMergeDataset.setOnClickListener {
                 val intent = Intent(this@EspDeviceActivity, ThreadBRActivity::class.java)
                 intent.putExtra(AppConstants.KEY_NODE_ID, nodeId)
-                intent.putExtra(
-                    AppConstants.KEY_TBR_ACTIVITY_REASON,
-                    ThreadBRActivity.MERGE_DATASET
-                )
+                intent.putExtra(AppConstants.KEY_TBR_ACTIVITY_REASON, ThreadBRActivity.MERGE_DATASET)
                 startActivity(intent)
             }
         } else {
@@ -609,205 +740,110 @@ class EspDeviceActivity : AppCompatActivity() {
         }
     }
 
-    private fun addCredentials(
-        borderAgentId: String,
-        credentialsToBeAdded: ThreadNetworkCredentials
-    ) {
+    private fun addCredentials(borderAgentId: String, credentialsToBeAdded: ThreadNetworkCredentials) {
         val threadBorderAgent = ThreadBorderAgent.newBuilder(borderAgentId.dsToByteArray()).build()
-
-        ThreadNetwork.getClient(this)
-            .addCredentials(threadBorderAgent, credentialsToBeAdded)
-            .addOnSuccessListener {
-                Log.d(TAG, "Credentials added.")
-            }
-            .addOnFailureListener { e: Exception ->
-                Log.e(TAG, "ERROR: [${e}]")
-            }
+        ThreadNetwork.getClient(this).addCredentials(threadBorderAgent, credentialsToBeAdded)
+            .addOnSuccessListener { Log.d(TAG, "Credentials added.") }
+            .addOnFailureListener { e: Exception -> Log.e(TAG, "ERROR: [${e}]") }
     }
 
-    private fun String.dsToByteArray(): ByteArray {
-        return chunked(2).map { it.toInt(16).toByte() }.toByteArray()
-    }
+    private fun String.dsToByteArray(): ByteArray = chunked(2).map { it.toInt(16).toByte() }.toByteArray()
 
     private fun setToolbar() {
         setSupportActionBar(binding.toolbarLayout.toolbar)
         supportActionBar!!.setDisplayHomeAsUpEnabled(true)
         supportActionBar!!.setDisplayShowHomeEnabled(true)
-
-        if (TextUtils.isEmpty(device!!.userVisibleName)) {
-            device!!.userVisibleName = device!!.deviceName
-        }
+        if (TextUtils.isEmpty(device!!.userVisibleName)) device!!.userVisibleName = device!!.deviceName
         binding.toolbarLayout.toolbar.title = device!!.userVisibleName
-
-        binding.toolbarLayout.toolbar.navigationIcon =
-            AppCompatResources.getDrawable(this, R.drawable.ic_arrow_left)
+        binding.toolbarLayout.toolbar.navigationIcon = AppCompatResources.getDrawable(this, R.drawable.ic_arrow_left)
         binding.toolbarLayout.toolbar.setNavigationOnClickListener { finish() }
     }
 
     private fun getNodeDetails() {
         stopUpdateValueTask()
-
-        networkApiManager!!.getNodeDetails(
-            nodeId, object : ApiResponseListener {
-                override fun onSuccess(data: Bundle?) {
-                    runOnUiThread {
-                        isNetworkAvailable = true
-                        updateUi()
-                        if (AppConstants.ESP_DEVICE_CAMERA == device?.deviceType) {
-
-                            val apiManager = ApiManager.getInstance(applicationContext)
-                            val appPreferences =
-                                getSharedPreferences(AppConstants.ESP_PREFERENCES, MODE_PRIVATE)
-                            val idToken: String =
-                                appPreferences.getString(AppConstants.KEY_ID_TOKEN, "").toString()
-
-                            apiManager.assumeRole(idToken, nodeId, object : ApiResponseListener {
-                                override fun onSuccess(data: Bundle?) {
-                                    runOnUiThread {
-                                        if (data != null) {
-                                            val accessKey = data.getString("access_key")
-                                            val secretKey = data.getString("secret_key")
-                                            val sessionToken = data.getString("session_token")
-                                            Log.d(
-                                                TAG,
-                                                "Successfully received credentials from assume role"
-                                            )
-
-                                            val credentialsProvider = IoTCredentialsProvider(
-                                                accessKey,
-                                                secretKey,
-                                                sessionToken
-                                            )
-
-                                            WebRtcConstants.setCredentialsProvider(
-                                                credentialsProvider
-                                            )
-
-                                            try {
-                                                val jwt = JWT(idToken)
-                                                val issuer = jwt.getClaim("iss").asString()
-                                                val regex =
-                                                    "(?:cognito-idp\\.|\\bs3\\.)([^.]+)\\.amazonaws\\.com(?:\\.cn)?".toRegex()
-                                                val matchResult = issuer?.let { regex.find(it) }
-                                                if (matchResult != null) {
-                                                    val region = matchResult.groupValues[1]
-                                                    Log.d(
-                                                        TAG,
-                                                        "Extracted region from token: $region"
-                                                    )
-                                                    EspApplication.region = region
-                                                    paramAdapter?.updateVideoStreamingState()
-                                                } else {
-                                                    Log.e(
-                                                        TAG,
-                                                        "Failed to extract region from issuer: $issuer"
-                                                    )
-                                                }
-                                            } catch (e: Exception) {
-                                                Log.e(TAG, "Error parsing ID token", e)
-                                            }
-                                        }
-                                        paramAdapter?.notifyDataSetChanged()
-                                        startUpdateValueTask()
-                                        hideLoading()
-                                        snackbar!!.dismiss()
-                                        binding.espDeviceLayout.swipeContainer.isRefreshing = false
-                                    }
-                                }
-
-                                override fun onResponseFailure(exception: Exception) {
-                                    runOnUiThread {
-                                        exception.printStackTrace()
-                                        EspApplication.region = ""
-                                        paramAdapter?.updateVideoStreamingState()
-                                        startUpdateValueTask()
-                                        hideLoading()
-                                        snackbar!!.dismiss()
-                                        binding.espDeviceLayout.swipeContainer.isRefreshing = false
-                                    }
-                                }
-
-                                override fun onNetworkFailure(exception: Exception) {
-                                    runOnUiThread {
-                                        exception.printStackTrace()
-                                        EspApplication.region = ""
-                                        paramAdapter?.updateVideoStreamingState()
-                                        startUpdateValueTask()
-                                        hideLoading()
-                                        snackbar!!.dismiss()
-                                        binding.espDeviceLayout.swipeContainer.isRefreshing = false
-                                    }
-                                }
-                            })
-                        }
-                    }
-                }
-
-                override fun onResponseFailure(exception: java.lang.Exception) {
+        networkApiManager!!.getNodeDetails(nodeId, object : ApiResponseListener {
+            override fun onSuccess(data: Bundle?) {
+                runOnUiThread {
                     isNetworkAvailable = true
-                    hideLoading()
-                    snackbar!!.dismiss()
-                    binding.espDeviceLayout.swipeContainer.isRefreshing = false
-                    if (exception is CloudException) {
-                        Toast.makeText(
-                            this@EspDeviceActivity,
-                            exception.message,
-                            Toast.LENGTH_SHORT
-                        )
-                            .show()
-                    } else {
-                        Toast.makeText(
-                            this@EspDeviceActivity,
-                            "Failed to get node details",
-                            Toast.LENGTH_SHORT
-                        ).show()
-                    }
                     updateUi()
-                }
-
-                override fun onNetworkFailure(exception: java.lang.Exception) {
-                    hideLoading()
-                    binding.espDeviceLayout.swipeContainer.isRefreshing = false
-                    if (exception is CloudException) {
-                        Toast.makeText(
-                            this@EspDeviceActivity,
-                            exception.message,
-                            Toast.LENGTH_SHORT
-                        )
-                            .show()
-                    } else {
-                        Toast.makeText(
-                            this@EspDeviceActivity,
-                            "Failed to get node details",
-                            Toast.LENGTH_SHORT
-                        ).show()
+                    if (AppConstants.ESP_DEVICE_CAMERA == device?.deviceType) {
+                        val apiManager = ApiManager.getInstance(applicationContext)
+                        val appPreferences = getSharedPreferences(AppConstants.ESP_PREFERENCES, MODE_PRIVATE)
+                        val idToken: String = appPreferences.getString(AppConstants.KEY_ID_TOKEN, "").toString()
+                        apiManager.assumeRole(idToken, nodeId, object : ApiResponseListener {
+                            override fun onSuccess(data: Bundle?) {
+                                runOnUiThread {
+                                    if (data != null) {
+                                        val accessKey = data.getString("access_key")
+                                        val secretKey = data.getString("secret_key")
+                                        val sessionToken = data.getString("session_token")
+                                        val credentialsProvider = IoTCredentialsProvider(accessKey, secretKey, sessionToken)
+                                        WebRtcConstants.setCredentialsProvider(credentialsProvider)
+                                        try {
+                                            val jwt = JWT(idToken)
+                                            val issuer = jwt.getClaim("iss").asString()
+                                            val regex = "(?:cognito-idp\\.|\\bs3\\.)([^.]+)\\.amazonaws\\.com(?:\\.cn)?".toRegex()
+                                            val matchResult = issuer?.let { regex.find(it) }
+                                            if (matchResult != null) {
+                                                EspApplication.region = matchResult.groupValues[1]
+                                                paramAdapter?.updateVideoStreamingState()
+                                            }
+                                        } catch (e: Exception) { Log.e(TAG, "Error parsing ID token", e) }
+                                    }
+                                    paramAdapter?.notifyDataSetChanged()
+                                    startUpdateValueTask()
+                                    hideLoading()
+                                    snackbar!!.dismiss()
+                                    binding.espDeviceLayout.swipeContainer.isRefreshing = false
+                                }
+                            }
+                            override fun onResponseFailure(exception: Exception) {
+                                runOnUiThread {
+                                    EspApplication.region = ""
+                                    paramAdapter?.updateVideoStreamingState()
+                                    startUpdateValueTask(); hideLoading(); snackbar!!.dismiss()
+                                    binding.espDeviceLayout.swipeContainer.isRefreshing = false
+                                }
+                            }
+                            override fun onNetworkFailure(exception: Exception) {
+                                runOnUiThread {
+                                    EspApplication.region = ""
+                                    paramAdapter?.updateVideoStreamingState()
+                                    startUpdateValueTask(); hideLoading(); snackbar!!.dismiss()
+                                    binding.espDeviceLayout.swipeContainer.isRefreshing = false
+                                }
+                            }
+                        })
                     }
-                    updateUi()
                 }
-            })
+            }
+            override fun onResponseFailure(exception: java.lang.Exception) {
+                isNetworkAvailable = true; hideLoading(); snackbar!!.dismiss()
+                binding.espDeviceLayout.swipeContainer.isRefreshing = false
+                if (exception is CloudException) Toast.makeText(this@EspDeviceActivity, exception.message, Toast.LENGTH_SHORT).show()
+                else Toast.makeText(this@EspDeviceActivity, "Failed to get node details", Toast.LENGTH_SHORT).show()
+                updateUi()
+            }
+            override fun onNetworkFailure(exception: java.lang.Exception) {
+                hideLoading(); binding.espDeviceLayout.swipeContainer.isRefreshing = false
+                if (exception is CloudException) Toast.makeText(this@EspDeviceActivity, exception.message, Toast.LENGTH_SHORT).show()
+                else Toast.makeText(this@EspDeviceActivity, "Failed to get node details", Toast.LENGTH_SHORT).show()
+                updateUi()
+            }
+        })
     }
 
     private fun getValues() {
-
         when (nodeStatus) {
             AppConstants.NODE_STATUS_REMOTELY_CONTROLLABLE -> {
                 if (!TextUtils.isEmpty(nodeType) && nodeType == AppConstants.NODE_TYPE_PURE_MATTER) {
                     var controllerNodeId = ""
-
                     for ((key, controllerDevices) in espApp!!.controllerDevices) {
-                        if (controllerDevices.containsKey(matterNodeId)) {
-                            controllerNodeId = key
-                            break
-                        }
+                        if (controllerDevices.containsKey(matterNodeId)) { controllerNodeId = key; break }
                     }
-
-                    if (!TextUtils.isEmpty(controllerNodeId)) {
-                        getParamValuesForDevice(controllerNodeId!!)
-                    }
+                    if (!TextUtils.isEmpty(controllerNodeId)) getParamValuesForDevice(controllerNodeId!!)
                 }
             }
-
-//            AppConstants.NODE_STATUS_MATTER_LOCAL -> getParamValuesForMatterDevice(nodeId!!)
             else -> getParamValuesForDevice(nodeId!!)
         }
     }
@@ -816,58 +852,25 @@ class EspDeviceActivity : AppCompatActivity() {
         networkApiManager!!.getParamsValues(rmNodeId, object : ApiResponseListener {
             override fun onSuccess(data: Bundle?) {
                 runOnUiThread {
-                    isNetworkAvailable = true
-                    hideLoading()
+                    isNetworkAvailable = true; hideLoading()
                     binding.espDeviceLayout.swipeContainer.isRefreshing = false
                     updateUi()
                     handler?.removeCallbacks(updateValuesTask)
-                    handler?.postDelayed(
-                        updateValuesTask,
-                        UPDATE_INTERVAL.toLong()
-                    )
+                    handler?.postDelayed(updateValuesTask, UPDATE_INTERVAL.toLong())
                 }
             }
-
             override fun onResponseFailure(exception: java.lang.Exception) {
-                stopUpdateValueTask()
-                isNetworkAvailable = true
-                hideLoading()
+                stopUpdateValueTask(); isNetworkAvailable = true; hideLoading()
                 binding.espDeviceLayout.swipeContainer.isRefreshing = false
-                if (exception is CloudException) {
-                    Toast.makeText(
-                        this@EspDeviceActivity,
-                        exception.message,
-                        Toast.LENGTH_SHORT
-                    )
-                        .show()
-                } else {
-                    Toast.makeText(
-                        this@EspDeviceActivity,
-                        "Failed to get param values",
-                        Toast.LENGTH_SHORT
-                    ).show()
-                }
+                if (exception is CloudException) Toast.makeText(this@EspDeviceActivity, exception.message, Toast.LENGTH_SHORT).show()
+                else Toast.makeText(this@EspDeviceActivity, "Failed to get param values", Toast.LENGTH_SHORT).show()
                 updateUi()
             }
-
             override fun onNetworkFailure(exception: java.lang.Exception) {
-                stopUpdateValueTask()
-                hideLoading()
+                stopUpdateValueTask(); hideLoading()
                 binding.espDeviceLayout.swipeContainer.isRefreshing = false
-                if (exception is CloudException) {
-                    Toast.makeText(
-                        this@EspDeviceActivity,
-                        exception.message,
-                        Toast.LENGTH_SHORT
-                    )
-                        .show()
-                } else {
-                    Toast.makeText(
-                        this@EspDeviceActivity,
-                        "Failed to get param values",
-                        Toast.LENGTH_SHORT
-                    ).show()
-                }
+                if (exception is CloudException) Toast.makeText(this@EspDeviceActivity, exception.message, Toast.LENGTH_SHORT).show()
+                else Toast.makeText(this@EspDeviceActivity, "Failed to get param values", Toast.LENGTH_SHORT).show()
                 updateUi()
             }
         })
@@ -877,59 +880,35 @@ class EspDeviceActivity : AppCompatActivity() {
         val sharedPreferences = getSharedPreferences(AppConstants.ESP_PREFERENCES, MODE_PRIVATE)
         val editor = sharedPreferences.edit()
         val lockSetupDone = sharedPreferences.getBoolean(KEY_LOCK_SETUP_DONE, false)
-
         if (!lockSetupDone) {
             lifecycleScope.launch {
-                if (nodeStatus == AppConstants.NODE_STATUS_MATTER_LOCAL
-                    && !TextUtils.isEmpty(matterNodeId)
-                    && espApp!!.chipClientMap.containsKey(matterNodeId)
-                ) {
+                if (nodeStatus == AppConstants.NODE_STATUS_MATTER_LOCAL && !TextUtils.isEmpty(matterNodeId) && espApp!!.chipClientMap.containsKey(matterNodeId)) {
                     try {
-                        val id = BigInteger(matterNodeId, 16)
-                        val deviceId = id.toLong()
-                        val espClusterHelper =
-                            DoorLockClusterHelper(espApp!!.chipClientMap[matterNodeId]!!)
+                        val id = BigInteger(matterNodeId, 16); val deviceId = id.toLong()
+                        val espClusterHelper = DoorLockClusterHelper(espApp!!.chipClientMap[matterNodeId]!!)
                         espClusterHelper.setUser(deviceId, AppConstants.ENDPOINT_1)
-
-                        espClusterHelper.setCredential(
-                            deviceId,
-                            AppConstants.ENDPOINT_1,
-                            AppConstants.DOOR_LOCK_PIN
-                        )
-                        editor.putBoolean(KEY_LOCK_SETUP_DONE, true)
-                        editor.apply()
-                    } catch (e: Exception) {
-                        e.printStackTrace()
-                    }
+                        espClusterHelper.setCredential(deviceId, AppConstants.ENDPOINT_1, AppConstants.DOOR_LOCK_PIN)
+                        editor.putBoolean(KEY_LOCK_SETUP_DONE, true); editor.apply()
+                    } catch (e: Exception) { e.printStackTrace() }
                 }
             }
         }
     }
 
     private fun setParamList(paramArrayList: ArrayList<Param>?) {
-        val params = ArrayList<Param>()
-        val attributes = ArrayList<Param>()
-
+        val params = ArrayList<Param>(); val attributes = ArrayList<Param>()
         if (paramArrayList != null) {
             for (i in paramArrayList.indices) {
                 val param = paramArrayList[i]
-                if (param.isDynamicParam) {
-                    params.add(Param(param))
-                } else {
-                    attributes.add(Param(param))
-                }
+                if (param.isDynamicParam) params.add(Param(param)) else attributes.add(Param(param))
             }
             arrangeParamList(params)
         }
-
         if (paramList == null || attributeList == null) {
-            paramList = ArrayList()
-            attributeList = ArrayList()
-            paramList!!.addAll(params)
-            attributeList!!.addAll(attributes)
+            paramList = ArrayList(); attributeList = ArrayList()
+            paramList!!.addAll(params); attributeList!!.addAll(attributes)
         } else {
-            paramAdapter?.updateParamList(params)
-            attrAdapter?.updateAttributeList(attributes)
+            paramAdapter?.updateParamList(params); attrAdapter?.updateAttributeList(attributes)
         }
     }
 
@@ -937,194 +916,92 @@ class EspDeviceActivity : AppCompatActivity() {
         var firstParamIndex = -1
         for (i in paramList.indices) {
             val param = paramList[i]
-            if (param != null && AppConstants.UI_TYPE_HUE_CIRCLE.equals(
-                    param.uiType,
-                    ignoreCase = true
-                )
-            ) {
-                firstParamIndex = i
-                break
-            }
+            if (param != null && AppConstants.UI_TYPE_HUE_CIRCLE.equals(param.uiType, ignoreCase = true)) { firstParamIndex = i; break }
         }
-
-        if (firstParamIndex != -1) {
-            val paramToBeMoved = paramList.removeAt(firstParamIndex)
-            paramList.add(0, paramToBeMoved)
-        } else {
+        if (firstParamIndex != -1) { val p = paramList.removeAt(firstParamIndex); paramList.add(0, p) }
+        else {
             for (i in paramList.indices) {
                 val param = paramList[i]
                 if (param != null) {
                     val dataType = param.dataType
-                    if (AppConstants.UI_TYPE_PUSH_BTN_BIG.equals(
-                            param.uiType,
-                            ignoreCase = true
-                        )
-                        && (!TextUtils.isEmpty(dataType) && (dataType.equals(
-                            "bool",
-                            ignoreCase = true
-                        ) || dataType.equals("boolean", ignoreCase = true)))
-                    ) {
-                        firstParamIndex = i
-                        break
+                    if (AppConstants.UI_TYPE_PUSH_BTN_BIG.equals(param.uiType, ignoreCase = true)
+                        && (!TextUtils.isEmpty(dataType) && (dataType.equals("bool", ignoreCase = true) || dataType.equals("boolean", ignoreCase = true)))) {
+                        firstParamIndex = i; break
                     }
                 }
             }
-
-            if (firstParamIndex != -1) {
-                val paramToBeMoved = paramList.removeAt(firstParamIndex)
-                paramList.add(0, paramToBeMoved)
-            }
+            if (firstParamIndex != -1) { val p = paramList.removeAt(firstParamIndex); paramList.add(0, p) }
         }
-
         var paramNameIndex = -1
         for (i in paramList.indices) {
             val param = paramList[i]
-            if (param != null) {
-                if (param.paramType != null && param.paramType == AppConstants.PARAM_TYPE_NAME) {
-                    paramNameIndex = i
-                    break
-                }
-            }
+            if (param != null && param.paramType != null && param.paramType == AppConstants.PARAM_TYPE_NAME) { paramNameIndex = i; break }
         }
-
         if (paramNameIndex != -1) {
-            val paramToBeMoved = paramList.removeAt(paramNameIndex)
-            if (firstParamIndex != -1) {
-                paramList.add(1, paramToBeMoved)
-            } else {
-                paramList.add(0, paramToBeMoved)
-            }
+            val p = paramList.removeAt(paramNameIndex)
+            if (firstParamIndex != -1) paramList.add(1, p) else paramList.add(0, p)
         }
-
         val paramIterator = paramList.iterator()
-        while (paramIterator.hasNext()) {
-            val p = paramIterator.next()
-            if (p.uiType != null && p.uiType == AppConstants.UI_TYPE_HIDDEN) {
-                paramIterator.remove()
-            }
-        }
+        while (paramIterator.hasNext()) { val p = paramIterator.next(); if (p.uiType != null && p.uiType == AppConstants.UI_TYPE_HIDDEN) paramIterator.remove() }
     }
 
     private fun updateUi() {
-        var deviceFound = false
-        var updatedDevice: Device? = null
+        var deviceFound = false; var updatedDevice: Device? = null
         lastUpdateRequestTime = System.currentTimeMillis()
-
         if (espApp!!.nodeMap.containsKey(nodeId)) {
-            val devices = espApp!!.nodeMap[nodeId]!!
-                .devices
-            if (devices == null || devices.isEmpty()) {
-                Log.e(TAG, "Node devices are not available")
-                return
-            }
+            val devices = espApp!!.nodeMap[nodeId]!!.devices
+            if (devices == null || devices.isEmpty()) { Log.e(TAG, "Node devices are not available"); return }
             timeStampOfStatus = espApp!!.nodeMap[nodeId]!!.timeStampOfStatus
             nodeStatus = espApp!!.nodeMap[nodeId]!!.nodeStatus
-
             for (i in devices.indices) {
-                if (device!!.deviceName != null && device!!.deviceName == devices[i].deviceName) {
-                    updatedDevice = Device(devices[i])
-                    deviceFound = true
-                    break
-                }
+                if (device!!.deviceName != null && device!!.deviceName == devices[i].deviceName) { updatedDevice = Device(devices[i]); deviceFound = true; break }
             }
-        } else {
-            Log.e(TAG, "Node does not exist in list. It may be deleted.")
-            finish()
-            return
-        }
+        } else { Log.e(TAG, "Node does not exist in list."); finish(); return }
 
         var isMatterOnly = false
-        if (!TextUtils.isEmpty(nodeType) && nodeType == AppConstants.NODE_TYPE_PURE_MATTER) {
-            isMatterOnly = true
-        }
-
-        if (!deviceFound && !isMatterOnly) {
-            Log.e(TAG, "Device does not exist in node list.")
-            finish()
-            return
-        }
-
-        if (updatedDevice == null) {
-            updatedDevice = device
-        }
-
+        if (!TextUtils.isEmpty(nodeType) && nodeType == AppConstants.NODE_TYPE_PURE_MATTER) isMatterOnly = true
+        if (!deviceFound && !isMatterOnly) { Log.e(TAG, "Device does not exist."); finish(); return }
+        if (updatedDevice == null) updatedDevice = device
         setParamList(updatedDevice!!.params)
 
         when (nodeStatus) {
             AppConstants.NODE_STATUS_MATTER_LOCAL -> if (espApp!!.appState == EspApplication.AppState.GET_DATA_SUCCESS) {
-                if (!TextUtils.isEmpty(matterNodeId) && espApp!!.availableMatterDevices.contains(
-                        matterNodeId
-                    )
-                    && espApp!!.matterDeviceInfoMap.containsKey(matterNodeId)
-                ) {
+                if (!TextUtils.isEmpty(matterNodeId) && espApp!!.availableMatterDevices.contains(matterNodeId) && espApp!!.matterDeviceInfoMap.containsKey(matterNodeId)) {
                     binding.espDeviceLayout.rlNodeStatus.visibility = View.VISIBLE
                     binding.espDeviceLayout.tvDeviceStatus.setText(R.string.status_local)
                 }
-            } else {
-                binding.espDeviceLayout.rlNodeStatus.visibility = View.INVISIBLE
-            }
-
+            } else binding.espDeviceLayout.rlNodeStatus.visibility = View.INVISIBLE
             AppConstants.NODE_STATUS_REMOTELY_CONTROLLABLE -> if (espApp!!.appState == EspApplication.AppState.GET_DATA_SUCCESS) {
                 binding.espDeviceLayout.rlNodeStatus.visibility = View.VISIBLE
                 binding.espDeviceLayout.tvDeviceStatus.setText(R.string.status_remote)
-            } else {
-                binding.espDeviceLayout.rlNodeStatus.visibility = View.INVISIBLE
-            }
-
+            } else binding.espDeviceLayout.rlNodeStatus.visibility = View.INVISIBLE
             AppConstants.NODE_STATUS_LOCAL -> {
                 val localDevice = espApp!!.localDeviceMap[nodeId]
-
                 if (espApp!!.appState == EspApplication.AppState.GET_DATA_SUCCESS) {
                     binding.espDeviceLayout.rlNodeStatus.visibility = View.VISIBLE
-
                     if (espApp!!.localDeviceMap.containsKey(nodeId)) {
-                        if (localDevice!!.securityType == 1 || localDevice.securityType == 2) {
-                            binding.espDeviceLayout.ivSecureLocal.setVisibility(View.VISIBLE)
-                        } else {
-                            binding.espDeviceLayout.ivSecureLocal.setVisibility(View.GONE)
-                        }
+                        if (localDevice!!.securityType == 1 || localDevice.securityType == 2) binding.espDeviceLayout.ivSecureLocal.setVisibility(View.VISIBLE)
+                        else binding.espDeviceLayout.ivSecureLocal.setVisibility(View.GONE)
                         binding.espDeviceLayout.tvDeviceStatus.setText(R.string.local_device_text)
                     }
-                } else {
-                    binding.espDeviceLayout.rlNodeStatus.visibility = View.INVISIBLE
-                }
+                } else binding.espDeviceLayout.rlNodeStatus.visibility = View.INVISIBLE
             }
-
             AppConstants.NODE_STATUS_OFFLINE -> if (espApp!!.appState == EspApplication.AppState.GET_DATA_SUCCESS) {
                 binding.espDeviceLayout.ivSecureLocal.setVisibility(View.GONE)
                 var offlineText = getString(R.string.status_offline)
                 binding.espDeviceLayout.tvDeviceStatus.text = offlineText
-
                 if (timeStampOfStatus != 0L) {
-                    val calendar = Calendar.getInstance()
-                    val day = calendar[Calendar.DATE]
-
-                    calendar.timeInMillis = timeStampOfStatus
-                    val offlineDay = calendar[Calendar.DATE]
-
-                    if (day == offlineDay) {
-                        val formatter = SimpleDateFormat("HH:mm")
-                        val time = formatter.format(calendar.time)
-                        offlineText = getString(R.string.offline_at) + " " + time
-                    } else {
-                        val formatter = SimpleDateFormat("dd/MM/yy, HH:mm")
-                        val time = formatter.format(calendar.time)
-                        offlineText = getString(R.string.offline_at) + " " + time
-                    }
+                    val calendar = Calendar.getInstance(); val day = calendar[Calendar.DATE]
+                    calendar.timeInMillis = timeStampOfStatus; val offlineDay = calendar[Calendar.DATE]
+                    offlineText = if (day == offlineDay) getString(R.string.offline_at) + " " + SimpleDateFormat("HH:mm").format(calendar.time)
+                    else getString(R.string.offline_at) + " " + SimpleDateFormat("dd/MM/yy, HH:mm").format(calendar.time)
                     binding.espDeviceLayout.tvDeviceStatus.text = offlineText
                 }
-            } else {
-                binding.espDeviceLayout.rlNodeStatus.visibility = View.INVISIBLE
-            }
-
-            AppConstants.NODE_STATUS_ONLINE -> binding.espDeviceLayout.rlNodeStatus.visibility =
-                View.INVISIBLE
-
+            } else binding.espDeviceLayout.rlNodeStatus.visibility = View.INVISIBLE
+            AppConstants.NODE_STATUS_ONLINE -> binding.espDeviceLayout.rlNodeStatus.visibility = View.INVISIBLE
             else -> binding.espDeviceLayout.rlNodeStatus.visibility = View.INVISIBLE
         }
-        paramAdapter!!.updateParamList(paramList)
-        attrAdapter!!.updateAttributeList(attributeList)
-
+        paramAdapter!!.updateParamList(paramList); attrAdapter!!.updateAttributeList(attributeList)
         if (paramList!!.size <= 0 && attributeList!!.size <= 0) {
             binding.espDeviceLayout.tvNoParams.visibility = View.VISIBLE
             binding.espDeviceLayout.rvDynamicParamList.visibility = View.GONE
@@ -1134,505 +1011,107 @@ class EspDeviceActivity : AppCompatActivity() {
             binding.espDeviceLayout.rvDynamicParamList.visibility = View.VISIBLE
             binding.espDeviceLayout.rvStaticParamList.visibility = View.VISIBLE
         }
-
         supportActionBar!!.title = device!!.userVisibleName
-
         if (!isNetworkAvailable) {
-            if (!snackbar!!.isShown) {
-                snackbar = Snackbar.make(
-                    binding.espDeviceLayout.paramsParentLayout,
-                    R.string.msg_no_internet,
-                    Snackbar.LENGTH_INDEFINITE
-                )
-            }
+            if (!snackbar!!.isShown) snackbar = Snackbar.make(binding.espDeviceLayout.paramsParentLayout, R.string.msg_no_internet, Snackbar.LENGTH_INDEFINITE)
             snackbar!!.show()
         }
     }
 
-    private fun showLoading() {
-        binding.espDeviceLayout.progressGetParams.visibility = View.VISIBLE
-        binding.espDeviceLayout.swipeContainer.visibility = View.GONE
-    }
-
-    private fun hideLoading() {
-        binding.espDeviceLayout.progressGetParams.visibility = View.GONE
-        binding.espDeviceLayout.swipeContainer.visibility = View.VISIBLE
-    }
+    private fun showLoading() { binding.espDeviceLayout.progressGetParams.visibility = View.VISIBLE; binding.espDeviceLayout.swipeContainer.visibility = View.GONE }
+    private fun hideLoading() { binding.espDeviceLayout.progressGetParams.visibility = View.GONE; binding.espDeviceLayout.swipeContainer.visibility = View.VISIBLE }
 
     fun showParamUpdateLoading(msg: String?) {
-        binding.espDeviceLayout.paramsParentLayout.setAlpha(0.3f)
-        binding.rlProgress.visibility = View.VISIBLE
-        val progressText = findViewById<TextView>(R.id.tv_loading)
-        progressText.text = msg
-        window.setFlags(
-            WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE,
-            WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
-        )
+        binding.espDeviceLayout.paramsParentLayout.setAlpha(0.3f); binding.rlProgress.visibility = View.VISIBLE
+        val progressText = findViewById<TextView>(R.id.tv_loading); progressText.text = msg
+        window.setFlags(WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE, WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE)
     }
-
     fun hideParamUpdateLoading() {
-        binding.espDeviceLayout.paramsParentLayout.setAlpha(1f)
-        binding.rlProgress.visibility = View.GONE
+        binding.espDeviceLayout.paramsParentLayout.setAlpha(1f); binding.rlProgress.visibility = View.GONE
         window.clearFlags(WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE)
     }
 
     private fun setupMatterSubscriptions() {
-        if (matterSubscriptionActive || matterNodeId.isNullOrEmpty() || !espApp!!.chipClientMap.containsKey(
-                matterNodeId
-            )
-        ) {
-            Log.d(TAG, "Cannot setup Matter subscriptions - already active or device not available")
-            return
-        }
+        if (matterSubscriptionActive || matterNodeId.isNullOrEmpty() || !espApp!!.chipClientMap.containsKey(matterNodeId)) return
         Log.d(TAG, "Setting up Matter subscriptions for device: $matterNodeId")
-
         lifecycleScope.launch {
             try {
                 val chipClient = espApp!!.chipClientMap[matterNodeId]!!
                 subscriptionHelper = SubscriptionHelper(chipClient)
                 val deviceId = BigInteger(matterNodeId, 16).toLong()
                 val connectedDevicePtr = chipClient.getConnectedDevicePointer(deviceId)
-
-                val subscriptions = subscriptionHelper!!.createSubscriptionsForDevice(
-                    device?.deviceType ?: "esp.device.switch",
-                    AppConstants.ENDPOINT_1.toLong()
-                )
-
-                Log.d(
-                    TAG,
-                    "Created ${subscriptions.size} subscriptions for device type: ${device?.deviceType}"
-                )
-
+                val subscriptions = subscriptionHelper!!.createSubscriptionsForDevice(device?.deviceType ?: "esp.device.switch", AppConstants.ENDPOINT_1.toLong())
                 val reportCallback = createMatterReportCallback()
-                val subscriptionEstablishedCallback =
-                    SubscriptionHelper.SubscriptionEstablishedCallbackForDevice(deviceId)
-                val resubscriptionAttemptCallback =
-                    SubscriptionHelper.ResubscriptionAttemptCallbackForDevice(deviceId)
-
-                subscriptionHelper!!.subscribeToMultipleAttributes(
-                    connectedDevicePtr,
-                    subscriptions,
-                    subscriptionEstablishedCallback,
-                    resubscriptionAttemptCallback,
-                    reportCallback
-                )
+                val subscriptionEstablishedCallback = SubscriptionHelper.SubscriptionEstablishedCallbackForDevice(deviceId)
+                val resubscriptionAttemptCallback = SubscriptionHelper.ResubscriptionAttemptCallbackForDevice(deviceId)
+                subscriptionHelper!!.subscribeToMultipleAttributes(connectedDevicePtr, subscriptions, subscriptionEstablishedCallback, resubscriptionAttemptCallback, reportCallback)
                 matterSubscriptionActive = true
-                Log.d(TAG, "Matter subscriptions setup completed successfully")
-            } catch (e: Exception) {
-                Log.e(TAG, "Failed to setup Matter subscriptions", e)
-                matterSubscriptionActive = false
-            }
+            } catch (e: Exception) { Log.e(TAG, "Failed to setup Matter subscriptions", e); matterSubscriptionActive = false }
         }
     }
 
     private fun stopMatterSubscriptions() {
-        if (!matterSubscriptionActive) {
-            return
-        }
-
-        Log.d(TAG, "Stopping Matter subscriptions")
-        matterSubscriptionActive = false
-        subscriptionHelper = null
+        if (!matterSubscriptionActive) return
+        matterSubscriptionActive = false; subscriptionHelper = null
     }
 
     private fun createMatterReportCallback(): ReportCallback {
         return object : ReportCallback {
-
-            override fun onError(
-                attributePath: ChipAttributePath?,
-                eventPath: ChipEventPath?,
-                e: java.lang.Exception
-            ) {
-                Log.e(TAG, "Matter subscription error", e)
-            }
-
+            override fun onError(attributePath: ChipAttributePath?, eventPath: ChipEventPath?, e: java.lang.Exception) { Log.e(TAG, "Matter subscription error", e) }
             override fun onReport(nodeState: NodeState) {
-                Log.d(TAG, "Matter subscription report received for node: ${nodeId}")
-
                 try {
                     for ((endpointId, endpoint) in nodeState.endpointStates) {
                         for ((clusterId, cluster) in endpoint.clusterStates) {
                             for ((attributeId, attribute) in cluster.attributeStates) {
-                                Log.d(
-                                    TAG,
-                                    "Attribute update - Endpoint: $endpointId, Cluster: $clusterId, Attribute: $attributeId, Value: ${attribute.value}"
-                                )
-
                                 val currentTime = System.currentTimeMillis()
                                 if (currentTime - lastMatterUpdateTime > MATTER_UPDATE_THROTTLE_MS) {
                                     lastMatterUpdateTime = currentTime
-                                    runOnUiThread {
-                                        updateParameterFromMatterAttribute(
-                                            clusterId,
-                                            attributeId,
-                                            attribute.value
-                                        )
-                                    }
-                                } else {
-                                    Log.d(
-                                        TAG,
-                                        "Throttling Matter update for cluster $clusterId attribute $attributeId"
-                                    )
+                                    runOnUiThread { updateParameterFromMatterAttribute(clusterId, attributeId, attribute.value) }
                                 }
                             }
                         }
                     }
-                } catch (e: Exception) {
-                    Log.e(TAG, "Error processing Matter subscription report", e)
-                }
+                } catch (e: Exception) { Log.e(TAG, "Error processing Matter subscription report", e) }
             }
-
-            override fun onDone() {
-                Log.d(TAG, "Matter subscription done")
-            }
+            override fun onDone() { Log.d(TAG, "Matter subscription done") }
         }
     }
 
-    private fun updateParameterFromMatterAttribute(
-        clusterId: Long,
-        attributeId: Long,
-        value: Any?
-    ) {
-        if (paramList == null || value == null) {
-            return
-        }
-
-        Log.d(
-            TAG,
-            "Updating parameter from Matter attribute - Cluster: $clusterId, Attribute: $attributeId, Value: $value"
-        )
-
+    private fun updateParameterFromMatterAttribute(clusterId: Long, attributeId: Long, value: Any?) {
+        if (paramList == null || value == null) return
         try {
             var paramUpdated = false
-
             when (clusterId) {
-                6L -> {
-                    if (attributeId == 0L) {
-                        for (param in paramList!!) {
-                            if (param.paramType == AppConstants.PARAM_TYPE_POWER || param.name.equals(
-                                    "Power",
-                                    true
-                                )
-                            ) {
-                                val boolValue = value as? Boolean ?: false
-                                param.switchStatus = boolValue
-                                param.labelValue = if (boolValue) "true" else "false"
-                                paramUpdated = true
-                                break
-                            }
-                        }
-                    }
-                }
-
-                8L -> {
-                    if (attributeId == 0L) {
-                        for (param in paramList!!) {
-                            if (param.paramType == AppConstants.PARAM_TYPE_BRIGHTNESS || param.name.equals(
-                                    "Brightness",
-                                    true
-                                )
-                            ) {
-                                val intValue = value as? Int ?: 0
-                                val percentage = (intValue * 100) / 254
-                                param.value = percentage.toDouble()
-                                param.labelValue = percentage.toString()
-                                paramUpdated = true
-                                break
-                            }
-                        }
-                    }
-                }
-
-                768L -> {
-                    when (attributeId) {
-                        0L -> {
-                            for (param in paramList!!) {
-                                if (param.paramType == AppConstants.PARAM_TYPE_HUE || param.name.equals(
-                                        "Hue",
-                                        true
-                                    )
-                                ) {
-                                    val intValue = value as? Int ?: 0
-                                    val hueValue = (intValue * 360) / 254
-                                    param.value = hueValue.toDouble()
-                                    param.labelValue = hueValue.toString()
-                                    paramUpdated = true
-                                    break
-                                }
-                            }
-                        }
-
-                        1L -> {
-                            for (param in paramList!!) {
-                                if (param.paramType == AppConstants.PARAM_TYPE_SATURATION || param.name.equals(
-                                        "Saturation",
-                                        true
-                                    )
-                                ) {
-                                    val intValue = value as? Int ?: 0
-                                    val percentage = (intValue * 100) / 254
-                                    param.value = percentage.toDouble()
-                                    param.labelValue = percentage.toString()
-                                    paramUpdated = true
-                                    break
-                                }
-                            }
-                        }
-
-                        7L -> {
-                            for (param in paramList!!) {
-                                if (param.paramType == AppConstants.PARAM_TYPE_CCT || param.name.equals(
-                                        AppConstants.PARAM_CCT,
-                                        true
-                                    )
-                                ) {
-                                    val miredsValue = value as? Int ?: 0
-                                    val kelvinValue = if (miredsValue > 0) {
-                                        1000000 / miredsValue
-                                    } else {
-                                        0
-                                    }
-                                    val clampedKelvin = kelvinValue.coerceIn(2000, 7000)
-                                    Log.d(
-                                        TAG,
-                                        "CCT: Mireds=$miredsValue, Raw Kelvin=$kelvinValue, Clamped Kelvin=$clampedKelvin"
-                                    )
-                                    param.value = clampedKelvin.toDouble()
-                                    param.labelValue = clampedKelvin.toString()
-                                    paramUpdated = true
-                                    break
-                                }
-                            }
-                        }
-                    }
-                }
-
-                1026L -> {
-                    if (attributeId == 0L) {
-                        for (param in paramList!!) {
-                            if (param.paramType == AppConstants.PARAM_TYPE_TEMPERATURE || param.name.equals(
-                                    "Temperature",
-                                    true
-                                )
-                            ) {
-                                val intValue = value as? Int ?: 0
-                                val temperatureValue = intValue / 100.0
-                                param.value = temperatureValue
-                                param.labelValue = String.format("%.1f", temperatureValue)
-                                paramUpdated = true
-                                break
-                            }
-                        }
-                    }
-                }
-
-//                257L -> { // Door Lock Cluster
-//                    if (attributeId == 0L) {
-//                        for (param in paramList!!) {
-//                            if (param.paramType == AppConstants.PARAM_TYPE_LOCK_STATE || param.name.equals("Lock", true)) {
-//                                val intValue = value as? Int ?: 0
-//                                val isLocked = intValue == 1
-//                                param.setSwitchStatus(!isLocked)
-//                                param.labelValue = if (isLocked) "Locked" else "Unlocked"
-//                                paramUpdated = true
-//                                break
-//                            }
-//                        }
-//                    }
-//                }
-
-                513L -> {
-                    when (attributeId) {
-                        0L -> {
-                            for (param in paramList!!) {
-                                if (param.paramType == AppConstants.PARAM_TYPE_TEMPERATURE || param.name.equals(
-                                        "Temperature",
-                                        true
-                                    )
-                                ) {
-                                    val intValue = value as? Int ?: 0
-                                    val temperatureValue = intValue / 100.0
-                                    param.value = temperatureValue
-                                    param.labelValue =
-                                        String.format("%.1f", temperatureValue)
-                                    paramUpdated = true
-                                    break
-                                }
-                            }
-                        }
-
-                        17L -> {
-                            for (param in paramList!!) {
-                                if (param.name.equals(
-                                        AppConstants.PARAM_COOLING_POINT,
-                                        true
-                                    )
-                                ) {
-                                    val intValue = value as? Int ?: 0
-                                    val temperatureValue = intValue / 100.0
-                                    param.value = temperatureValue
-                                    param.labelValue =
-                                        String.format("%.1f", temperatureValue)
-                                    paramUpdated = true
-                                    break
-                                }
-                            }
-                        }
-
-                        18L -> {
-                            for (param in paramList!!) {
-                                if (param.name.equals(
-                                        AppConstants.PARAM_HEATING_POINT,
-                                        true
-                                    )
-                                ) {
-                                    val intValue = value as? Int ?: 0
-                                    val temperatureValue = intValue / 100.0
-                                    param.value = temperatureValue
-                                    param.labelValue =
-                                        String.format("%.1f", temperatureValue)
-                                    paramUpdated = true
-                                    break
-                                }
-                            }
-                        }
-
-                        28L -> {
-                            for (param in paramList!!) {
-                                if (param.name.equals(
-                                        AppConstants.PARAM_SYSTEM_MODE,
-                                        true
-                                    )
-                                ) {
-                                    val intValue = value as? Int ?: 0
-                                    param.value = intValue.toDouble()
-                                    param.labelValue = when (intValue) {
-                                        0 -> "Off"
-                                        1 -> "Auto"
-                                        3 -> "Cool"
-                                        4 -> "Heat"
-                                        else -> "Unknown"
-                                    }
-                                    paramUpdated = true
-                                    break
-                                }
-                            }
-                        }
-                    }
-                }
-
-                514L -> {
-                    if (attributeId == 0L) {
-                        for (param in paramList!!) {
-                            if (param.paramType == AppConstants.PARAM_TYPE_SPEED || param.name.equals(
-                                    "Speed",
-                                    true
-                                )
-                            ) {
-                                val intValue = value as? Int ?: 0
-                                param.value = intValue.toDouble()
-                                param.labelValue = intValue.toString()
-                                paramUpdated = true
-                                break
-                            }
-                        }
-                    }
-                }
-
-                else -> {
-                    Log.d(
-                        TAG,
-                        "Unhandled cluster ID: $clusterId for attribute: $attributeId"
-                    )
-                }
+                6L -> { if (attributeId == 0L) { for (param in paramList!!) { if (param.paramType == AppConstants.PARAM_TYPE_POWER || param.name.equals("Power", true)) { val boolValue = value as? Boolean ?: false; param.switchStatus = boolValue; param.labelValue = if (boolValue) "true" else "false"; paramUpdated = true; break } } } }
+                8L -> { if (attributeId == 0L) { for (param in paramList!!) { if (param.paramType == AppConstants.PARAM_TYPE_BRIGHTNESS || param.name.equals("Brightness", true)) { val intValue = value as? Int ?: 0; val percentage = (intValue * 100) / 254; param.value = percentage.toDouble(); param.labelValue = percentage.toString(); paramUpdated = true; break } } } }
+                768L -> { when (attributeId) { 0L -> { for (param in paramList!!) { if (param.paramType == AppConstants.PARAM_TYPE_HUE || param.name.equals("Hue", true)) { val intValue = value as? Int ?: 0; val hueValue = (intValue * 360) / 254; param.value = hueValue.toDouble(); param.labelValue = hueValue.toString(); paramUpdated = true; break } } } 1L -> { for (param in paramList!!) { if (param.paramType == AppConstants.PARAM_TYPE_SATURATION || param.name.equals("Saturation", true)) { val intValue = value as? Int ?: 0; val percentage = (intValue * 100) / 254; param.value = percentage.toDouble(); param.labelValue = percentage.toString(); paramUpdated = true; break } } } 7L -> { for (param in paramList!!) { if (param.paramType == AppConstants.PARAM_TYPE_CCT || param.name.equals(AppConstants.PARAM_CCT, true)) { val miredsValue = value as? Int ?: 0; val kelvinValue = if (miredsValue > 0) 1000000 / miredsValue else 0; val clampedKelvin = kelvinValue.coerceIn(2000, 7000); param.value = clampedKelvin.toDouble(); param.labelValue = clampedKelvin.toString(); paramUpdated = true; break } } } } }
+                1026L -> { if (attributeId == 0L) { for (param in paramList!!) { if (param.paramType == AppConstants.PARAM_TYPE_TEMPERATURE || param.name.equals("Temperature", true)) { val intValue = value as? Int ?: 0; val temperatureValue = intValue / 100.0; param.value = temperatureValue; param.labelValue = String.format("%.1f", temperatureValue); paramUpdated = true; break } } } }
+                513L -> { when (attributeId) { 0L -> { for (param in paramList!!) { if (param.paramType == AppConstants.PARAM_TYPE_TEMPERATURE || param.name.equals("Temperature", true)) { val intValue = value as? Int ?: 0; val temperatureValue = intValue / 100.0; param.value = temperatureValue; param.labelValue = String.format("%.1f", temperatureValue); paramUpdated = true; break } } } 17L -> { for (param in paramList!!) { if (param.name.equals(AppConstants.PARAM_COOLING_POINT, true)) { val intValue = value as? Int ?: 0; val temperatureValue = intValue / 100.0; param.value = temperatureValue; param.labelValue = String.format("%.1f", temperatureValue); paramUpdated = true; break } } } 18L -> { for (param in paramList!!) { if (param.name.equals(AppConstants.PARAM_HEATING_POINT, true)) { val intValue = value as? Int ?: 0; val temperatureValue = intValue / 100.0; param.value = temperatureValue; param.labelValue = String.format("%.1f", temperatureValue); paramUpdated = true; break } } } 28L -> { for (param in paramList!!) { if (param.name.equals(AppConstants.PARAM_SYSTEM_MODE, true)) { val intValue = value as? Int ?: 0; param.value = intValue.toDouble(); param.labelValue = when (intValue) { 0 -> "Off"; 1 -> "Auto"; 3 -> "Cool"; 4 -> "Heat"; else -> "Unknown" }; paramUpdated = true; break } } } } }
+                514L -> { if (attributeId == 0L) { for (param in paramList!!) { if (param.paramType == AppConstants.PARAM_TYPE_SPEED || param.name.equals("Speed", true)) { val intValue = value as? Int ?: 0; param.value = intValue.toDouble(); param.labelValue = intValue.toString(); paramUpdated = true; break } } } }
+                else -> Log.d(TAG, "Unhandled cluster ID: $clusterId for attribute: $attributeId")
             }
-
             if (paramUpdated) {
-                Log.d(TAG, "Parameter updated from Matter subscription - refreshing UI")
                 val paramPosition = findParameterPosition(clusterId, attributeId)
-                if (paramPosition >= 0) {
-                    paramAdapter?.notifyItemChanged(paramPosition)
-                } else {
-                    paramAdapter?.notifyDataSetChanged()
-                }
+                if (paramPosition >= 0) paramAdapter?.notifyItemChanged(paramPosition) else paramAdapter?.notifyDataSetChanged()
             }
-
-        } catch (e: Exception) {
-            Log.e(TAG, "Error updating parameter from Matter attribute", e)
-        }
+        } catch (e: Exception) { Log.e(TAG, "Error updating parameter from Matter attribute", e) }
     }
 
     private fun findParameterPosition(clusterId: Long, attributeId: Long): Int {
         if (paramList == null) return -1
-
         for (i in paramList!!.indices) {
             val param = paramList!![i]
-
             val matches = when (clusterId) {
-                6L -> if (attributeId == 0L) param.paramType == AppConstants.PARAM_TYPE_POWER || param.name.equals(
-                    "Power",
-                    true
-                ) else false
-
-                8L -> if (attributeId == 0L) param.paramType == AppConstants.PARAM_TYPE_BRIGHTNESS || param.name.equals(
-                    "Brightness",
-                    true
-                ) else false
-
-                768L -> when (attributeId) {
-                    0L -> param.paramType == AppConstants.PARAM_TYPE_HUE || param.name.equals(
-                        AppConstants.PARAM_HUE,
-                        true
-                    )
-
-                    1L -> param.paramType == AppConstants.PARAM_TYPE_SATURATION || param.name.equals(
-                        AppConstants.PARAM_SATURATION,
-                        true
-                    )
-
-                    7L -> param.paramType == AppConstants.PARAM_TYPE_CCT || param.name.equals(
-                        AppConstants.PARAM_CCT,
-                        true
-                    )
-
-                    else -> false
-                }
-
-                1026L -> if (attributeId == 0L) param.paramType == AppConstants.PARAM_TYPE_TEMPERATURE || param.name.equals(
-                    "Temperature",
-                    true
-                ) else false
-
-                513L -> when (attributeId) {
-                    0L -> param.paramType == AppConstants.PARAM_TYPE_TEMPERATURE || param.name.equals(
-                        "Temperature",
-                        true
-                    )
-
-                    17L -> param.name.equals(AppConstants.PARAM_COOLING_POINT, true)
-                    18L -> param.name.equals(AppConstants.PARAM_HEATING_POINT, true)
-                    28L -> param.name.equals(AppConstants.PARAM_SYSTEM_MODE, true)
-                    else -> false
-                }
-
-                514L -> if (attributeId == 0L) param.paramType == AppConstants.PARAM_TYPE_SPEED || param.name.equals(
-                    "Speed",
-                    true
-                ) else false
-
+                6L -> if (attributeId == 0L) param.paramType == AppConstants.PARAM_TYPE_POWER || param.name.equals("Power", true) else false
+                8L -> if (attributeId == 0L) param.paramType == AppConstants.PARAM_TYPE_BRIGHTNESS || param.name.equals("Brightness", true) else false
+                768L -> when (attributeId) { 0L -> param.paramType == AppConstants.PARAM_TYPE_HUE || param.name.equals(AppConstants.PARAM_HUE, true); 1L -> param.paramType == AppConstants.PARAM_TYPE_SATURATION || param.name.equals(AppConstants.PARAM_SATURATION, true); 7L -> param.paramType == AppConstants.PARAM_TYPE_CCT || param.name.equals(AppConstants.PARAM_CCT, true); else -> false }
+                1026L -> if (attributeId == 0L) param.paramType == AppConstants.PARAM_TYPE_TEMPERATURE || param.name.equals("Temperature", true) else false
+                513L -> when (attributeId) { 0L -> param.paramType == AppConstants.PARAM_TYPE_TEMPERATURE || param.name.equals("Temperature", true); 17L -> param.name.equals(AppConstants.PARAM_COOLING_POINT, true); 18L -> param.name.equals(AppConstants.PARAM_HEATING_POINT, true); 28L -> param.name.equals(AppConstants.PARAM_SYSTEM_MODE, true); else -> false }
+                514L -> if (attributeId == 0L) param.paramType == AppConstants.PARAM_TYPE_SPEED || param.name.equals("Speed", true) else false
                 else -> false
             }
-
-            if (matches) {
-                Log.d(
-                    TAG,
-                    "Found parameter ${param.name} at position $i for cluster $clusterId attribute $attributeId"
-                )
-                return i
-            }
+            if (matches) return i
         }
-
-        Log.d(TAG, "Parameter not found for cluster $clusterId attribute $attributeId")
         return -1
     }
 }
