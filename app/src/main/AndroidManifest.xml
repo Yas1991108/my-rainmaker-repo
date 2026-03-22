@@ -54,7 +54,9 @@
         android:roundIcon="@mipmap/ic_esp_rainmaker_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/AppTheme"
-        android:usesCleartextTraffic="true"> <activity
+        android:usesCleartextTraffic="true">
+
+        <activity
             android:name="com.espressif.ui.activities.SplashActivity"
             android:exported="true"
             android:theme="@android:style/Theme.NoDisplay">
@@ -67,7 +69,8 @@
 
         </activity>
 
-        <activity 
+        <!-- طوافة الوطني: شاشة الجهاز الديناميكية -->
+        <activity
             android:name="com.espressif.ui.dynamic.DynamicDeviceActivity"
             android:exported="false"
             android:screenOrientation="portrait"
@@ -86,7 +89,8 @@
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
 
-                <data android:scheme="your_app_id" /> </intent-filter>
+                <data android:scheme="your_app_id" />
+            </intent-filter>
         </activity>
 
         <activity
