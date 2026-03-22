@@ -103,7 +103,6 @@ public class ProvisionActivity extends AppCompatActivity {
     private Handler wifiConnectHandler = new Handler();
 
     // ===== متغير طوافة الوطني: SSID الخاص بـ ESP32 =====
-    // يُحفظ في بداية الـ Activity قبل أي تغيير في الشبكة
     private String espApSsid = "";
 
     @Override
@@ -122,7 +121,6 @@ public class ProvisionActivity extends AppCompatActivity {
         apiManager = ApiManager.getInstance(getApplicationContext());
 
         // ===== طوافة الوطني: احفظ SSID الـ ESP32 الآن =====
-        // الهاتف متصل بـ ESP32's AP في هذه اللحظة
         espApSsid = UiJsonFetchHelper.INSTANCE.getCurrentApSsid(getApplicationContext());
         Log.d(TAG, "[TAWAFA] ESP32 AP SSID: " + espApSsid);
 
@@ -313,8 +311,6 @@ public class ProvisionActivity extends AppCompatActivity {
             tick2.setImageResource(R.drawable.ic_checkbox_on);
 
             // ===== طوافة الوطني: جلب JSON الواجهة من ESP32 =====
-            // الهاتف لا يزال على شبكة ESP32's AP في هذه اللحظة
-            // UiJsonFetchHelper يتعامل مع كل شيء بشكل آمن في الخلفية
             if (!espApSsid.isEmpty()) {
                 UiJsonFetchHelper.INSTANCE.fetchOnApConnection(
                     getApplicationContext(),
@@ -322,7 +318,6 @@ public class ProvisionActivity extends AppCompatActivity {
                 );
                 Log.d(TAG, "[TAWAFA] Fetching UI config for: " + espApSsid);
             }
-            // ====================================================
 
         } else {
             tick2.setImageResource(R.drawable.ic_alert);
@@ -379,9 +374,7 @@ public class ProvisionActivity extends AppCompatActivity {
             );
             Log.d(TAG, "[TAWAFA] Bound node: " + receivedNodeId + " ↔ " + espApSsid);
         }
-        // ====================================================
 
-        // Try to get node details even if local control failed
         apiManager.getNodeDetails(receivedNodeId, new ApiResponseListener() {
 
             @Override
@@ -393,14 +386,12 @@ public class ProvisionActivity extends AppCompatActivity {
             @Override
             public void onResponseFailure(Exception exception) {
                 Log.e(TAG, "Get node details - failure");
-                // Even if we fail to get details, proceed with status check
                 handler.postDelayed(getNodeStatusTask, 1000);
             }
 
             @Override
             public void onNetworkFailure(Exception exception) {
                 Log.e(TAG, "Get node details - failure");
-                // Even if we fail to get details, proceed with status check
                 handler.postDelayed(getNodeStatusTask, 1000);
             }
         });
@@ -425,7 +416,6 @@ public class ProvisionActivity extends AppCompatActivity {
 
                 @Override
                 public void wifiConfigSent() {
-                    // Nothing to do here
                     Log.d(TAG, "Thread Config sent");
                 }
 
@@ -451,7 +441,6 @@ public class ProvisionActivity extends AppCompatActivity {
                     Log.d(TAG, "WiFi Config Applied");
                     runOnUiThread(() -> {
                         doStep2();
-                        // Start WiFi connection confirmation timeout
                         wifiConnectHandler.postDelayed(wifiConnectTimeoutTask, WIFI_CONNECT_TIMEOUT);
                     });
                 }
@@ -536,7 +525,6 @@ public class ProvisionActivity extends AppCompatActivity {
 
                 @Override
                 public void wifiConfigSent() {
-                    // Nothing to do here
                     Log.d(TAG, "WiFi Config sent");
                 }
 
@@ -673,7 +661,6 @@ public class ProvisionActivity extends AppCompatActivity {
                     String requestId = jsonObject.optString(AppConstants.KEY_REQUEST_ID);
                     Log.d(TAG, "Got challenge: " + challenge + ", request_id: " + requestId);
 
-                    /* Send challenge to device using proto */
                     byte[] challengeBytes = challenge.getBytes(StandardCharsets.UTF_8);
 
                     CmdCRPayload cmdPayload = CmdCRPayload.newBuilder()
@@ -698,7 +685,6 @@ public class ProvisionActivity extends AppCompatActivity {
                                         String nodeId = respPayload.getNodeId();
                                         receivedNodeId = nodeId;
 
-                                        /* Call verify mapping API */
                                         byte[] bytes = signedChallenge.toByteArray();
 
                                         if (bytes.length != 256) {
@@ -706,7 +692,6 @@ public class ProvisionActivity extends AppCompatActivity {
                                             return;
                                         }
 
-                                        /* Convert bytes to hex string */
                                         StringBuilder hexString = new StringBuilder(512);
                                         for (byte b : bytes) {
                                             hexString.append(String.format("%02x", b & 0xFF));
@@ -793,7 +778,6 @@ public class ProvisionActivity extends AppCompatActivity {
             return;
         }
 
-        /* Proceed with traditional cloud user association if challenge response was not done */
         final String secretKey = UUID.randomUUID().toString();
 
         EspRmakerUserMapping.CmdSetUserMapping deviceSecretRequest = EspRmakerUserMapping.CmdSetUserMapping.newBuilder()
@@ -989,7 +973,6 @@ public class ProvisionActivity extends AppCompatActivity {
                             EspNode espNode = espApp.nodeMap.get(receivedNodeId);
                             if (espNode != null && espNode.isOnline()) {
 
-                                // Send time zone to device.
                                 ArrayList<Service> services = espNode.getServices();
                                 boolean isTimeZoneServiceAvailable = false;
                                 String paramName = "";
@@ -1018,7 +1001,6 @@ public class ProvisionActivity extends AppCompatActivity {
                                     Log.e(TAG, "Time zone service is available");
                                     TimeZone tz = TimeZone.getDefault();
                                     String timeZoneId = tz.getID();
-                                    Log.e(TAG, "Time zone id : " + timeZoneId);
 
                                     JsonObject body = new JsonObject();
                                     JsonObject jsonParam = new JsonObject();
@@ -1033,6 +1015,13 @@ public class ProvisionActivity extends AppCompatActivity {
                                             tick5.setVisibility(View.VISIBLE);
                                             progress5.setVisibility(View.GONE);
                                             tvProvSuccess.setVisibility(View.VISIBLE);
+
+                                            // ===== طوافة الوطني: فتح الواجهة الديناميكية بعد نجاح التوقيت (الموقع 1) =====
+                                            UiJsonFetchHelper.INSTANCE.navigateAfterProvision(
+                                                ProvisionActivity.this,
+                                                receivedNodeId,
+                                                espApSsid
+                                            );
                                         }
 
                                         @Override
@@ -1060,6 +1049,13 @@ public class ProvisionActivity extends AppCompatActivity {
                                     progress5.setVisibility(View.GONE);
                                     tvProvSuccess.setVisibility(View.VISIBLE);
                                     handler.removeCallbacks(nodeStatusReqFailed);
+
+                                    // ===== طوافة الوطني: فتح الواجهة الديناميكية في حال غياب خدمة التوقيت (الموقع 2) =====
+                                    UiJsonFetchHelper.INSTANCE.navigateAfterProvision(
+                                        ProvisionActivity.this,
+                                        receivedNodeId,
+                                        espApSsid
+                                    );
                                 }
                             } else {
                                 handler.removeCallbacks(getNodeStatusTask);
@@ -1135,7 +1131,6 @@ public class ProvisionActivity extends AppCompatActivity {
         builder.setTitle(R.string.error_title);
         builder.setMessage(R.string.dialog_msg_ble_device_disconnection);
 
-        // Set up the buttons
         builder.setPositiveButton(R.string.btn_ok, new DialogInterface.OnClickListener() {
 
             @Override
@@ -1147,7 +1142,6 @@ public class ProvisionActivity extends AppCompatActivity {
         builder.show();
     }
 
-    /* Helper method to print bytes in hex */
     private String bytesToHex(byte[] bytes, int offset, int length) {
         StringBuilder result = new StringBuilder();
         for (int i = offset; i < offset + length && i < bytes.length; i++) {
