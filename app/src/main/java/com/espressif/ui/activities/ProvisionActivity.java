@@ -16,7 +16,6 @@ package com.espressif.ui.activities;
 
 import android.content.DialogInterface;
 import android.content.Intent;
-import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.os.Handler;
 import android.text.TextUtils;
@@ -59,6 +58,10 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.TimeZone;
@@ -73,14 +76,18 @@ import rmaker_misc.EspRmakerChalResp.RespCRPayload;
 
 // ===== استيراد مساعد طوافة الوطني =====
 import com.espressif.ui.dynamic.UiJsonFetchHelper;
+import com.espressif.ui.dynamic.UiConfigStorage;
 
 public class ProvisionActivity extends AppCompatActivity {
 
     private static final String TAG = ProvisionActivity.class.getSimpleName();
 
-    private static final long ADD_DEVICE_REQ_TIME = 5000;
+    private static final long ADD_DEVICE_REQ_TIME  = 5000;
     private static final long NODE_STATUS_REQ_TIME = 35000;
-    private static final long WIFI_CONNECT_TIMEOUT = 15000; // 15 seconds timeout
+    private static final long WIFI_CONNECT_TIMEOUT = 15000;
+
+    // ===== الـ URL الثابت لـ ESP32 في وضع AP =====
+    private static final String ESP32_AP_UI_URL = "http://192.168.4.1:8080/ui";
 
     private ImageView tick1, tick2, tick3, tick4, tick5;
     private ContentLoadingProgressBar progress1, progress2, progress3, progress4, progress5;
@@ -91,38 +98,47 @@ public class ProvisionActivity extends AppCompatActivity {
     private MaterialCardView btnOk;
     private TextView txtOkBtn;
 
-    private int addDeviceReqCount = 0;
+    private int    addDeviceReqCount      = 0;
     private String ssidValue, passphraseValue = "", dataset;
     private String receivedNodeId, secretKey;
 
-    private ApiManager apiManager;
-    private Handler handler;
+    private ApiManager         apiManager;
+    private Handler            handler;
     private ESPProvisionManager provisionManager;
-    private boolean isProvisioningCompleted = false;
-    private boolean isChallengeResponseFlow = false;
-    private Handler wifiConnectHandler = new Handler();
+    private boolean isProvisioningCompleted   = false;
+    private boolean isChallengeResponseFlow   = false;
+    private Handler wifiConnectHandler        = new Handler();
 
-    // ===== متغير طوافة الوطني: SSID الخاص بـ ESP32 =====
-    private String espApSsid = "";
+    // ===== متغيرات طوافة الوطني =====
+    private String  espApSsid      = "";  // SSID الـ ESP32 (محفوظ قبل قطع الاتصال)
+    private boolean uiJsonFetched  = false; // هل تم جلب JSON بنجاح؟
 
+    // ============================================================
+    // onCreate — يُجلب JSON فوراً هنا قبل أي شيء آخر
+    // ============================================================
     @Override
     protected void onCreate(Bundle savedInstanceState) {
-
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_provision);
 
         Intent intent = getIntent();
-        ssidValue = intent.getStringExtra(AppConstants.KEY_SSID);
+        ssidValue       = intent.getStringExtra(AppConstants.KEY_SSID);
         passphraseValue = intent.getStringExtra(AppConstants.KEY_PASSWORD);
-        dataset = intent.getStringExtra(AppConstants.KEY_THREAD_DATASET);
+        dataset         = intent.getStringExtra(AppConstants.KEY_THREAD_DATASET);
         provisionManager = ESPProvisionManager.getInstance(getApplicationContext());
 
-        handler = new Handler();
+        handler    = new Handler();
         apiManager = ApiManager.getInstance(getApplicationContext());
 
-        // ===== طوافة الوطني: احفظ SSID الـ ESP32 الآن =====
+        // ===== طوافة الوطني: احفظ SSID الآن =====
+        // الهاتف لا يزال على "Tawafa_1" في هذه اللحظة
         espApSsid = UiJsonFetchHelper.INSTANCE.getCurrentApSsid(getApplicationContext());
         Log.d(TAG, "[TAWAFA] ESP32 AP SSID: " + espApSsid);
+
+        // ===== طوافة الوطني: جلب JSON فوري في خيط منفصل =====
+        // يجب أن يحدث هنا — قبل أن يُرسل الـ provisioning أي بيانات
+        // لأن ESP32 ستقطع AP بمجرد استلام بيانات الـ WiFi
+        fetchUiJsonNow();
 
         initViews();
         checkDeviceCapabilities();
@@ -133,6 +149,58 @@ public class ProvisionActivity extends AppCompatActivity {
         doStep1();
     }
 
+    // ============================================================
+    // جلب JSON من ESP32 فوراً (بدون delay) في خيط منفصل
+    // ============================================================
+    private void fetchUiJsonNow() {
+        final String serviceKey = espApSsid.isEmpty() ? "Tawafa_1" : espApSsid;
+        final UiConfigStorage storage = new UiConfigStorage(getApplicationContext());
+
+        // إذا كان محفوظاً مسبقاً — لا داعي للجلب مجدداً
+        if (storage.loadConfig(serviceKey) != null) {
+            Log.d(TAG, "[TAWAFA] Config already cached for: " + serviceKey);
+            uiJsonFetched = true;
+            return;
+        }
+
+        new Thread(() -> {
+            HttpURLConnection conn = null;
+            try {
+                Log.d(TAG, "[TAWAFA] Fetching JSON from: " + ESP32_AP_UI_URL);
+                URL url = new URL(ESP32_AP_UI_URL);
+                conn = (HttpURLConnection) url.openConnection();
+                conn.setConnectTimeout(4000); // 4 ثوانٍ فقط
+                conn.setReadTimeout(4000);
+                conn.setRequestMethod("GET");
+                conn.setRequestProperty("Accept", "application/json");
+
+                int code = conn.getResponseCode();
+                if (code == 200) {
+                    BufferedReader reader = new BufferedReader(
+                        new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8)
+                    );
+                    StringBuilder sb = new StringBuilder();
+                    String line;
+                    while ((line = reader.readLine()) != null) sb.append(line);
+                    reader.close();
+
+                    String json = sb.toString();
+                    boolean saved = storage.saveConfig(serviceKey, json);
+                    uiJsonFetched = saved;
+                    Log.d(TAG, saved
+                        ? "[TAWAFA] ✅ JSON saved for: " + serviceKey + " (" + json.length() + " chars)"
+                        : "[TAWAFA] ⚠️ JSON invalid, not saved");
+                } else {
+                    Log.w(TAG, "[TAWAFA] HTTP " + code + " from ESP32");
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "[TAWAFA] Fetch failed: " + e.getMessage());
+            } finally {
+                if (conn != null) conn.disconnect();
+            }
+        }).start();
+    }
+
     @Override
     public void onBackPressed() {
         provisionManager.getEspDevice().disconnectDevice();
@@ -141,7 +209,6 @@ public class ProvisionActivity extends AppCompatActivity {
 
     @Override
     protected void onDestroy() {
-
         wifiConnectHandler.removeCallbacks(wifiConnectTimeoutTask);
         apiManager.cancelRequestStatusPollingTask();
         handler.removeCallbacks(getNodeStatusTask);
@@ -153,15 +220,10 @@ public class ProvisionActivity extends AppCompatActivity {
     @Subscribe(threadMode = ThreadMode.MAIN)
     public void onEvent(UpdateEvent event) {
         Log.d(TAG, "ON UPDATE EVENT RECEIVED : " + event.getEventType());
-
         switch (event.getEventType()) {
-
             case EVENT_DEVICE_ADDED:
-                if (!isChallengeResponseFlow) {
-                    doStep5();
-                }
+                if (!isChallengeResponseFlow) doStep5();
                 break;
-
             case EVENT_ADD_DEVICE_TIME_OUT:
                 if (!isChallengeResponseFlow) {
                     tick4.setImageResource(R.drawable.ic_error);
@@ -177,31 +239,21 @@ public class ProvisionActivity extends AppCompatActivity {
 
     @Subscribe(threadMode = ThreadMode.MAIN)
     public void onEvent(DeviceConnectionEvent event) {
-
         Log.d(TAG, "On Device Connection Event RECEIVED : " + event.getEventType());
-
         switch (event.getEventType()) {
-
             case ESPConstants.EVENT_DEVICE_DISCONNECTED:
-                if (!isFinishing() && !isProvisioningCompleted) {
+                if (!isFinishing() && !isProvisioningCompleted)
                     showAlertForDeviceDisconnected();
-                }
                 break;
         }
     }
 
-
-    private View.OnClickListener okBtnClickListener = new View.OnClickListener() {
-
-        @Override
-        public void onClick(View v) {
-            provisionManager.getEspDevice().disconnectDevice();
-            finish();
-        }
+    private View.OnClickListener okBtnClickListener = v -> {
+        provisionManager.getEspDevice().disconnectDevice();
+        finish();
     };
 
     private void initViews() {
-
         MaterialToolbar toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
         getSupportActionBar().setDisplayHomeAsUpEnabled(false);
@@ -220,21 +272,19 @@ public class ProvisionActivity extends AppCompatActivity {
         progress4 = findViewById(R.id.prov_progress_4);
         progress5 = findViewById(R.id.prov_progress_5);
 
-        tvErrAtStep1 = findViewById(R.id.tv_prov_error_1);
-        tvErrAtStep2 = findViewById(R.id.tv_prov_error_2);
-        tvErrAtStep3 = findViewById(R.id.tv_prov_error_3);
-        tvErrAtStep4 = findViewById(R.id.tv_prov_error_4);
-        tvErrAtStep5 = findViewById(R.id.tv_prov_error_5);
+        tvErrAtStep1  = findViewById(R.id.tv_prov_error_1);
+        tvErrAtStep2  = findViewById(R.id.tv_prov_error_2);
+        tvErrAtStep3  = findViewById(R.id.tv_prov_error_3);
+        tvErrAtStep4  = findViewById(R.id.tv_prov_error_4);
+        tvErrAtStep5  = findViewById(R.id.tv_prov_error_5);
         tvProvSuccess = findViewById(R.id.tv_prov_success);
-        tvProvError = findViewById(R.id.tv_prov_error);
+        tvProvError   = findViewById(R.id.tv_prov_error);
+        tvProvStep1   = findViewById(R.id.tv_prov_step_1);
+        tvProvStep2   = findViewById(R.id.tv_prov_step_2);
 
-        tvProvStep1 = findViewById(R.id.tv_prov_step_1);
-        tvProvStep2 = findViewById(R.id.tv_prov_step_2);
-
-        btnOk = findViewById(R.id.btn_ok);
+        btnOk    = findViewById(R.id.btn_ok);
         txtOkBtn = findViewById(R.id.text_btn);
         btnOk.findViewById(R.id.iv_arrow).setVisibility(View.GONE);
-
         txtOkBtn.setText(R.string.btn_done);
         btnOk.setOnClickListener(okBtnClickListener);
 
@@ -245,27 +295,22 @@ public class ProvisionActivity extends AppCompatActivity {
     }
 
     private void checkDeviceCapabilities() {
-
         ESPDevice espDevice = provisionManager.getEspDevice();
-        if (espDevice != null && espDevice.getTransportType().equals(ESPConstants.TransportType.TRANSPORT_BLE)) {
+        if (espDevice != null &&
+            espDevice.getTransportType().equals(ESPConstants.TransportType.TRANSPORT_BLE)) {
             String versionInfo = espDevice.getVersionInfo();
             ArrayList<String> rmakerExtraCaps = new ArrayList<>();
-
             try {
                 JSONObject jsonObject = new JSONObject(versionInfo);
                 JSONObject rmakerExtraInfo = jsonObject.optJSONObject("rmaker_extra");
-
-                /* Check rmaker_extra capabilities */
                 if (rmakerExtraInfo != null) {
                     JSONArray extraCapabilities = rmakerExtraInfo.optJSONArray("cap");
                     if (extraCapabilities != null) {
-                        for (int i = 0, len = extraCapabilities.length(); i < len; i++) {
+                        for (int i = 0, len = extraCapabilities.length(); i < len; i++)
                             rmakerExtraCaps.add(extraCapabilities.optString(i));
-                        }
                     }
                 }
                 isChallengeResponseFlow = rmakerExtraCaps.contains(AppConstants.CAPABILITY_CHALLENGE_RESP);
-
             } catch (JSONException e) {
                 e.printStackTrace();
                 Log.e(TAG, "Version Info JSON not available.");
@@ -275,21 +320,14 @@ public class ProvisionActivity extends AppCompatActivity {
     }
 
     private void doStep1() {
-
         tick1.setVisibility(View.GONE);
         progress1.setVisibility(View.VISIBLE);
-
         if (isChallengeResponseFlow) {
-            // Update UI for challenge-response flow
             tvProvStep1.setText(R.string.confirming_node_association);
             View step3View = findViewById(R.id.layout_configuring_wifi_creds);
             View step4View = findViewById(R.id.layout_confirming_node_association);
-            if (step3View != null) {
-                step3View.setVisibility(View.GONE);
-            }
-            if (step4View != null) {
-                step4View.setVisibility(View.GONE);
-            }
+            if (step3View != null) step3View.setVisibility(View.GONE);
+            if (step4View != null) step4View.setVisibility(View.GONE);
             verifyNodeAssociation();
         } else {
             associateDevice();
@@ -297,7 +335,6 @@ public class ProvisionActivity extends AppCompatActivity {
     }
 
     private void doStep2() {
-
         tick1.setImageResource(R.drawable.ic_checkbox_on);
         tick1.setVisibility(View.VISIBLE);
         progress1.setVisibility(View.GONE);
@@ -306,19 +343,9 @@ public class ProvisionActivity extends AppCompatActivity {
     }
 
     private void doStep3(boolean isSuccessInStep2) {
-
         if (isSuccessInStep2) {
             tick2.setImageResource(R.drawable.ic_checkbox_on);
-
-            // ===== طوافة الوطني: جلب JSON الواجهة من ESP32 =====
-            if (!espApSsid.isEmpty()) {
-                UiJsonFetchHelper.INSTANCE.fetchOnApConnection(
-                    getApplicationContext(),
-                    espApSsid
-                );
-                Log.d(TAG, "[TAWAFA] Fetching UI config for: " + espApSsid);
-            }
-
+            Log.d(TAG, "[TAWAFA] Step3 success — uiJsonFetched=" + uiJsonFetched);
         } else {
             tick2.setImageResource(R.drawable.ic_alert);
         }
@@ -331,17 +358,11 @@ public class ProvisionActivity extends AppCompatActivity {
             handler.postDelayed(addDeviceTask, ADD_DEVICE_REQ_TIME);
         } else {
             hideLoading();
-            handler.postDelayed(new Runnable() {
-                @Override
-                public void run() {
-                    doStep5();
-                }
-            }, 500);
+            handler.postDelayed(this::doStep5, 500);
         }
     }
 
     private void doStep4() {
-
         hideLoading();
         tick3.setImageResource(R.drawable.ic_checkbox_on);
         tick3.setVisibility(View.VISIBLE);
@@ -350,8 +371,11 @@ public class ProvisionActivity extends AppCompatActivity {
         progress4.setVisibility(View.VISIBLE);
     }
 
+    // ============================================================
+    // doStep5 — نجح الـ provisioning كاملاً
+    // هنا نربط nodeId ونفتح الواجهة الديناميكية
+    // ============================================================
     private void doStep5() {
-
         Log.d(TAG, "================= Do step 5 =================");
         Log.d(TAG, "Received node id : " + receivedNodeId);
         tick4.setImageResource(R.drawable.ic_checkbox_on);
@@ -361,147 +385,102 @@ public class ProvisionActivity extends AppCompatActivity {
         progress5.setVisibility(View.VISIBLE);
         handler.postDelayed(nodeStatusReqFailed, NODE_STATUS_REQ_TIME);
 
-        // Track device addition for in-app review
         InAppReviewManager.Companion.getInstance(ProvisionActivity.this)
                 .trackDeviceAddition(ProvisionActivity.this);
 
-        // ===== طوافة الوطني: ربط nodeId بـ service_name =====
-        if (!espApSsid.isEmpty() && !TextUtils.isEmpty(receivedNodeId)) {
+        // ===== طوافة الوطني: ربط nodeId فور معرفته =====
+        final String serviceKey = espApSsid.isEmpty() ? "Tawafa_1" : espApSsid;
+        if (!TextUtils.isEmpty(receivedNodeId)) {
             UiJsonFetchHelper.INSTANCE.bindNode(
-                getApplicationContext(),
-                espApSsid,
-                receivedNodeId
+                getApplicationContext(), serviceKey, receivedNodeId
             );
-            Log.d(TAG, "[TAWAFA] Bound node: " + receivedNodeId + " ↔ " + espApSsid);
+            Log.d(TAG, "[TAWAFA] Bound: " + serviceKey + " ↔ " + receivedNodeId);
         }
 
         apiManager.getNodeDetails(receivedNodeId, new ApiResponseListener() {
-
-            @Override
-            public void onSuccess(Bundle data) {
+            @Override public void onSuccess(Bundle data) {
                 Log.e(TAG, "Get node details - success");
                 handler.postDelayed(getNodeStatusTask, 1000);
             }
-
-            @Override
-            public void onResponseFailure(Exception exception) {
+            @Override public void onResponseFailure(Exception exception) {
                 Log.e(TAG, "Get node details - failure");
                 handler.postDelayed(getNodeStatusTask, 1000);
             }
-
-            @Override
-            public void onNetworkFailure(Exception exception) {
+            @Override public void onNetworkFailure(Exception exception) {
                 Log.e(TAG, "Get node details - failure");
                 handler.postDelayed(getNodeStatusTask, 1000);
             }
         });
     }
 
+    // ============================================================
+    // provision — إرسال بيانات الـ WiFi للـ ESP32
+    // ============================================================
     private void provision() {
-
         Log.d(TAG, "+++++++++++++++++++++++++++++ PROVISION +++++++++++++++++++++++++++++");
 
         if (!TextUtils.isEmpty(dataset)) {
             provisionManager.getEspDevice().provision(dataset, new ProvisionListener() {
-
-                @Override
-                public void createSessionFailed(Exception e) {
-                    runOnUiThread(new Runnable() {
-                        @Override
-                        public void run() {
-                            Toast.makeText(ProvisionActivity.this, R.string.error_session, Toast.LENGTH_LONG).show();
-                        }
-                    });
+                @Override public void createSessionFailed(Exception e) {
+                    runOnUiThread(() -> Toast.makeText(
+                        ProvisionActivity.this, R.string.error_session, Toast.LENGTH_LONG).show());
                 }
-
-                @Override
-                public void wifiConfigSent() {
+                @Override public void wifiConfigSent() {
                     Log.d(TAG, "Thread Config sent");
                 }
-
-                @Override
-                public void wifiConfigFailed(Exception e) {
-
-                    runOnUiThread(new Runnable() {
-
-                        @Override
-                        public void run() {
-                            tick1.setImageResource(R.drawable.ic_error);
-                            tick1.setVisibility(View.VISIBLE);
-                            progress1.setVisibility(View.GONE);
-                            tvErrAtStep2.setVisibility(View.VISIBLE);
-                            tvErrAtStep2.setText(R.string.error_prov_thread_step_2);
-                            hideLoading();
-                        }
+                @Override public void wifiConfigFailed(Exception e) {
+                    runOnUiThread(() -> {
+                        tick1.setImageResource(R.drawable.ic_error);
+                        tick1.setVisibility(View.VISIBLE);
+                        progress1.setVisibility(View.GONE);
+                        tvErrAtStep2.setVisibility(View.VISIBLE);
+                        tvErrAtStep2.setText(R.string.error_prov_thread_step_2);
+                        hideLoading();
                     });
                 }
-
-                @Override
-                public void wifiConfigApplied() {
+                @Override public void wifiConfigApplied() {
                     Log.d(TAG, "WiFi Config Applied");
                     runOnUiThread(() -> {
                         doStep2();
                         wifiConnectHandler.postDelayed(wifiConnectTimeoutTask, WIFI_CONNECT_TIMEOUT);
                     });
                 }
-
-                @Override
-                public void wifiConfigApplyFailed(Exception e) {
-
-                    runOnUiThread(new Runnable() {
-
-                        @Override
-                        public void run() {
-
-                            Log.e(TAG, "WiFi Config Apply failed");
-                            tick1.setImageResource(R.drawable.ic_error);
-                            tick1.setVisibility(View.VISIBLE);
-                            progress1.setVisibility(View.GONE);
-                            tvErrAtStep2.setVisibility(View.VISIBLE);
-                            tvErrAtStep2.setText(R.string.error_prov_thread_step_2_);
-                            hideLoading();
+                @Override public void wifiConfigApplyFailed(Exception e) {
+                    runOnUiThread(() -> {
+                        Log.e(TAG, "WiFi Config Apply failed");
+                        tick1.setImageResource(R.drawable.ic_error);
+                        tick1.setVisibility(View.VISIBLE);
+                        progress1.setVisibility(View.GONE);
+                        tvErrAtStep2.setVisibility(View.VISIBLE);
+                        tvErrAtStep2.setText(R.string.error_prov_thread_step_2_);
+                        hideLoading();
+                    });
+                }
+                @Override public void provisioningFailedFromDevice(
+                        final ESPConstants.ProvisionFailureReason failureReason) {
+                    runOnUiThread(() -> {
+                        switch (failureReason) {
+                            case AUTH_FAILED:
+                                tvErrAtStep2.setText(R.string.error_dataset_invalid);
+                                displayFailureAtStep2(); break;
+                            case NETWORK_NOT_FOUND:
+                                tvErrAtStep2.setText(R.string.error_network_not_found);
+                                displayFailureAtStep2(); break;
+                            case DEVICE_DISCONNECTED:
+                                doStep3(false); break;
+                            case UNKNOWN:
+                                tvErrAtStep2.setText(R.string.error_prov_step_3); break;
                         }
                     });
                 }
-
-                @Override
-                public void provisioningFailedFromDevice(final ESPConstants.ProvisionFailureReason failureReason) {
-
-                    runOnUiThread(new Runnable() {
-                        @Override
-                        public void run() {
-
-                            switch (failureReason) {
-                                case AUTH_FAILED:
-                                    tvErrAtStep2.setText(R.string.error_dataset_invalid);
-                                    displayFailureAtStep2();
-                                    break;
-                                case NETWORK_NOT_FOUND:
-                                    tvErrAtStep2.setText(R.string.error_network_not_found);
-                                    displayFailureAtStep2();
-                                    break;
-                                case DEVICE_DISCONNECTED:
-                                    doStep3(false);
-                                    break;
-                                case UNKNOWN:
-                                    tvErrAtStep2.setText(R.string.error_prov_step_3);
-                                    break;
-                            }
-                        }
-                    });
-                }
-
-                @Override
-                public void deviceProvisioningSuccess() {
+                @Override public void deviceProvisioningSuccess() {
                     runOnUiThread(() -> {
                         wifiConnectHandler.removeCallbacks(wifiConnectTimeoutTask);
                         isProvisioningCompleted = true;
                         doStep3(true);
                     });
                 }
-
-                @Override
-                public void onProvisioningFailed(Exception e) {
+                @Override public void onProvisioningFailed(Exception e) {
                     runOnUiThread(() -> {
                         Log.e(TAG, "Device Provisioning Failed");
                         wifiConnectHandler.removeCallbacks(wifiConnectTimeoutTask);
@@ -511,135 +490,75 @@ public class ProvisionActivity extends AppCompatActivity {
             });
 
         } else {
-            provisionManager.getEspDevice().provision(ssidValue, passphraseValue, new ProvisionListener() {
-
-                @Override
-                public void createSessionFailed(Exception e) {
-                    runOnUiThread(new Runnable() {
-                        @Override
-                        public void run() {
-                            Toast.makeText(ProvisionActivity.this, R.string.error_session, Toast.LENGTH_LONG).show();
-                        }
-                    });
+            provisionManager.getEspDevice().provision(ssidValue, passphraseValue,
+                new ProvisionListener() {
+                @Override public void createSessionFailed(Exception e) {
+                    runOnUiThread(() -> Toast.makeText(
+                        ProvisionActivity.this, R.string.error_session, Toast.LENGTH_LONG).show());
                 }
-
-                @Override
-                public void wifiConfigSent() {
+                @Override public void wifiConfigSent() {
                     Log.d(TAG, "WiFi Config sent");
                 }
-
-                @Override
-                public void wifiConfigFailed(Exception e) {
-
-                    runOnUiThread(new Runnable() {
-
-                        @Override
-                        public void run() {
-
-                            tick1.setImageResource(R.drawable.ic_error);
-                            tick1.setVisibility(View.VISIBLE);
-                            progress1.setVisibility(View.GONE);
-                            tvErrAtStep2.setVisibility(View.VISIBLE);
-                            tvErrAtStep2.setText(R.string.error_prov_step_2);
-                            hideLoading();
-                        }
+                @Override public void wifiConfigFailed(Exception e) {
+                    runOnUiThread(() -> {
+                        tick1.setImageResource(R.drawable.ic_error);
+                        tick1.setVisibility(View.VISIBLE);
+                        progress1.setVisibility(View.GONE);
+                        tvErrAtStep2.setVisibility(View.VISIBLE);
+                        tvErrAtStep2.setText(R.string.error_prov_step_2);
+                        hideLoading();
                     });
                 }
-
-                @Override
-                public void wifiConfigApplied() {
-
+                @Override public void wifiConfigApplied() {
                     Log.d(TAG, "WiFi Config Applied");
-                    runOnUiThread(new Runnable() {
-                        @Override
-                        public void run() {
-                            doStep2();
+                    runOnUiThread(this::doNothing);
+                    runOnUiThread(() -> doStep2());
+                }
+
+                private void doNothing() {}
+
+                @Override public void wifiConfigApplyFailed(Exception e) {
+                    runOnUiThread(() -> {
+                        tick1.setImageResource(R.drawable.ic_error);
+                        tick1.setVisibility(View.VISIBLE);
+                        progress1.setVisibility(View.GONE);
+                        tvErrAtStep2.setVisibility(View.VISIBLE);
+                        tvErrAtStep2.setText(R.string.error_prov_step_2);
+                        hideLoading();
+                    });
+                }
+                @Override public void provisioningFailedFromDevice(
+                        final ESPConstants.ProvisionFailureReason failureReason) {
+                    runOnUiThread(() -> {
+                        switch (failureReason) {
+                            case AUTH_FAILED:
+                                tvErrAtStep2.setText(R.string.error_authentication_failed);
+                                displayFailureAtStep2(); break;
+                            case NETWORK_NOT_FOUND:
+                                tvErrAtStep2.setText(R.string.error_network_not_found);
+                                displayFailureAtStep2(); break;
+                            case DEVICE_DISCONNECTED:
+                                doStep3(false); break;
+                            case UNKNOWN:
+                                tvErrAtStep2.setText(R.string.error_prov_step_3);
+                                displayFailureAtStep2(); break;
                         }
                     });
                 }
-
-                @Override
-                public void wifiConfigApplyFailed(Exception e) {
-
-                    runOnUiThread(new Runnable() {
-
-                        @Override
-                        public void run() {
-
-                            tick1.setImageResource(R.drawable.ic_error);
-                            tick1.setVisibility(View.VISIBLE);
-                            progress1.setVisibility(View.GONE);
-                            tvErrAtStep2.setVisibility(View.VISIBLE);
-                            tvErrAtStep2.setText(R.string.error_prov_step_2);
-                            hideLoading();
-                        }
+                @Override public void deviceProvisioningSuccess() {
+                    runOnUiThread(() -> {
+                        isProvisioningCompleted = true;
+                        doStep3(true);
                     });
                 }
-
-                @Override
-                public void provisioningFailedFromDevice(final ESPConstants.ProvisionFailureReason failureReason) {
-
-                    runOnUiThread(new Runnable() {
-
-                        @Override
-                        public void run() {
-
-                            switch (failureReason) {
-
-                                case AUTH_FAILED:
-                                    tvErrAtStep2.setText(R.string.error_authentication_failed);
-                                    displayFailureAtStep2();
-                                    break;
-
-                                case NETWORK_NOT_FOUND:
-                                    tvErrAtStep2.setText(R.string.error_network_not_found);
-                                    displayFailureAtStep2();
-                                    break;
-
-                                case DEVICE_DISCONNECTED:
-                                    doStep3(false);
-                                    break;
-
-                                case UNKNOWN:
-                                    tvErrAtStep2.setText(R.string.error_prov_step_3);
-                                    displayFailureAtStep2();
-                                    break;
-                            }
-                        }
-                    });
-                }
-
-                @Override
-                public void deviceProvisioningSuccess() {
-
-                    runOnUiThread(new Runnable() {
-
-                        @Override
-                        public void run() {
-                            isProvisioningCompleted = true;
-                            doStep3(true);
-                        }
-                    });
-                }
-
-                @Override
-                public void onProvisioningFailed(Exception e) {
-
-                    runOnUiThread(new Runnable() {
-
-                        @Override
-                        public void run() {
-
-                            doStep3(false);
-                        }
-                    });
+                @Override public void onProvisioningFailed(Exception e) {
+                    runOnUiThread(() -> doStep3(false));
                 }
             });
         }
     }
 
     private void displayFailureAtStep2() {
-
         tick2.setImageResource(R.drawable.ic_error);
         tick2.setVisibility(View.VISIBLE);
         progress2.setVisibility(View.GONE);
@@ -649,109 +568,77 @@ public class ProvisionActivity extends AppCompatActivity {
     }
 
     private void verifyNodeAssociation() {
-
         apiManager.initiateMapping(new ApiResponseListener() {
-
-            @Override
-            public void onSuccess(Bundle data) {
+            @Override public void onSuccess(Bundle data) {
                 try {
                     String jsonResponse = data.getString(AppConstants.KEY_RESPONSE);
                     JSONObject jsonObject = new JSONObject(jsonResponse);
-                    String challenge = jsonObject.optString(AppConstants.KEY_CHALLENGE);
-                    String requestId = jsonObject.optString(AppConstants.KEY_REQUEST_ID);
+                    String challenge  = jsonObject.optString(AppConstants.KEY_CHALLENGE);
+                    String requestId  = jsonObject.optString(AppConstants.KEY_REQUEST_ID);
                     Log.d(TAG, "Got challenge: " + challenge + ", request_id: " + requestId);
 
                     byte[] challengeBytes = challenge.getBytes(StandardCharsets.UTF_8);
-
                     CmdCRPayload cmdPayload = CmdCRPayload.newBuilder()
-                            .setPayload(ByteString.copyFrom(challengeBytes))
-                            .build();
-
+                            .setPayload(ByteString.copyFrom(challengeBytes)).build();
                     RMakerMiscPayload payload = RMakerMiscPayload.newBuilder()
                             .setMsg(RMakerMiscMsgType.TypeCmdChallengeResponse)
                             .setStatus(RMakerMiscStatus.Success)
-                            .setCmdChallengeResponsePayload(cmdPayload)
-                            .build();
+                            .setCmdChallengeResponsePayload(cmdPayload).build();
 
-                    provisionManager.getEspDevice().sendDataToCustomEndPoint(AppConstants.HANDLER_RM_CH_RESP, payload.toByteArray(), new ResponseListener() {
-                        @Override
-                        public void onSuccess(byte[] returnData) {
-                            if (returnData != null) {
-                                try {
-                                    RMakerMiscPayload response = RMakerMiscPayload.parseFrom(returnData);
-                                    if (response.getStatus() == RMakerMiscStatus.Success) {
-                                        RespCRPayload respPayload = response.getRespChallengeResponsePayload();
-                                        ByteString signedChallenge = respPayload.getPayload();
-                                        String nodeId = respPayload.getNodeId();
-                                        receivedNodeId = nodeId;
+                    provisionManager.getEspDevice().sendDataToCustomEndPoint(
+                        AppConstants.HANDLER_RM_CH_RESP, payload.toByteArray(),
+                        new ResponseListener() {
+                            @Override public void onSuccess(byte[] returnData) {
+                                if (returnData != null) {
+                                    try {
+                                        RMakerMiscPayload response =
+                                            RMakerMiscPayload.parseFrom(returnData);
+                                        if (response.getStatus() == RMakerMiscStatus.Success) {
+                                            RespCRPayload respPayload =
+                                                response.getRespChallengeResponsePayload();
+                                            ByteString signedChallenge = respPayload.getPayload();
+                                            String nodeId = respPayload.getNodeId();
+                                            receivedNodeId = nodeId;
 
-                                        byte[] bytes = signedChallenge.toByteArray();
+                                            byte[] bytes = signedChallenge.toByteArray();
+                                            if (bytes.length != 256) { showMappingError(); return; }
 
-                                        if (bytes.length != 256) {
-                                            showMappingError();
-                                            return;
-                                        }
+                                            StringBuilder hexString = new StringBuilder(512);
+                                            for (byte b : bytes)
+                                                hexString.append(String.format("%02x", b & 0xFF));
+                                            String challengeResponse = hexString.toString();
 
-                                        StringBuilder hexString = new StringBuilder(512);
-                                        for (byte b : bytes) {
-                                            hexString.append(String.format("%02x", b & 0xFF));
-                                        }
-                                        String challengeResponse = hexString.toString();
+                                            JsonObject body = new JsonObject();
+                                            body.addProperty(AppConstants.KEY_REQUEST_ID, requestId);
+                                            body.addProperty(AppConstants.KEY_NODE_ID, nodeId);
+                                            body.addProperty(AppConstants.KEY_CHALLENGE_RESP,
+                                                challengeResponse);
 
-                                        JsonObject body = new JsonObject();
-                                        body.addProperty(AppConstants.KEY_REQUEST_ID, requestId);
-                                        body.addProperty(AppConstants.KEY_NODE_ID, nodeId);
-                                        body.addProperty(AppConstants.KEY_CHALLENGE_RESP, challengeResponse);
-
-                                        apiManager.verifyUserNodeMapping(requestId, nodeId, challengeResponse, new ApiResponseListener() {
-                                            @Override
-                                            public void onSuccess(Bundle data) {
-                                                runOnUiThread(() -> {
-                                                    provision();
+                                            apiManager.verifyUserNodeMapping(
+                                                requestId, nodeId, challengeResponse,
+                                                new ApiResponseListener() {
+                                                    @Override public void onSuccess(Bundle data) {
+                                                        runOnUiThread(() -> provision());
+                                                    }
+                                                    @Override public void onResponseFailure(Exception e) {
+                                                        showMappingError();
+                                                    }
+                                                    @Override public void onNetworkFailure(Exception e) {
+                                                        showMappingError();
+                                                    }
                                                 });
-                                            }
-
-                                            @Override
-                                            public void onResponseFailure(Exception e) {
-                                                showMappingError();
-                                            }
-
-                                            @Override
-                                            public void onNetworkFailure(Exception e) {
-                                                showMappingError();
-                                            }
-                                        });
-                                    } else {
-                                        showMappingError();
-                                    }
-                                } catch (Exception e) {
-                                    e.printStackTrace();
-                                    showMappingError();
+                                        } else { showMappingError(); }
+                                    } catch (Exception e) { e.printStackTrace(); showMappingError(); }
                                 }
                             }
-                        }
-
-                        @Override
-                        public void onFailure(Exception e) {
-                            e.printStackTrace();
-                            showMappingError();
-                        }
-                    });
-                } catch (JSONException e) {
-                    e.printStackTrace();
-                    showMappingError();
-                }
+                            @Override public void onFailure(Exception e) {
+                                e.printStackTrace(); showMappingError();
+                            }
+                        });
+                } catch (JSONException e) { e.printStackTrace(); showMappingError(); }
             }
-
-            @Override
-            public void onResponseFailure(Exception e) {
-                showMappingError();
-            }
-
-            @Override
-            public void onNetworkFailure(Exception e) {
-                showMappingError();
-            }
+            @Override public void onResponseFailure(Exception e) { showMappingError(); }
+            @Override public void onNetworkFailure(Exception e)  { showMappingError(); }
         });
     }
 
@@ -769,9 +656,7 @@ public class ProvisionActivity extends AppCompatActivity {
     }
 
     private void associateDevice() {
-
         Log.d(TAG, "Associate device");
-
         if (isChallengeResponseFlow) {
             Log.d(TAG, "Challenge response was already done, skipping cloud user association");
             doStep4();
@@ -779,101 +664,73 @@ public class ProvisionActivity extends AppCompatActivity {
         }
 
         final String secretKey = UUID.randomUUID().toString();
-
-        EspRmakerUserMapping.CmdSetUserMapping deviceSecretRequest = EspRmakerUserMapping.CmdSetUserMapping.newBuilder()
+        EspRmakerUserMapping.CmdSetUserMapping deviceSecretRequest =
+            EspRmakerUserMapping.CmdSetUserMapping.newBuilder()
                 .setUserID(ApiManager.userId)
-                .setSecretKey(secretKey)
-                .build();
-        EspRmakerUserMapping.RMakerConfigMsgType msgType = EspRmakerUserMapping.RMakerConfigMsgType.TypeCmdSetUserMapping;
-        EspRmakerUserMapping.RMakerConfigPayload payload = EspRmakerUserMapping.RMakerConfigPayload.newBuilder()
+                .setSecretKey(secretKey).build();
+        EspRmakerUserMapping.RMakerConfigMsgType msgType =
+            EspRmakerUserMapping.RMakerConfigMsgType.TypeCmdSetUserMapping;
+        EspRmakerUserMapping.RMakerConfigPayload payload =
+            EspRmakerUserMapping.RMakerConfigPayload.newBuilder()
                 .setMsg(msgType)
-                .setCmdSetUserMapping(deviceSecretRequest)
-                .build();
+                .setCmdSetUserMapping(deviceSecretRequest).build();
 
-        provisionManager.getEspDevice().sendDataToCustomEndPoint(AppConstants.HANDLER_RM_USER_MAPPING, payload.toByteArray(), new ResponseListener() {
-
-            @Override
-            public void onSuccess(byte[] returnData) {
-
-                Log.d(TAG, "Successfully sent user id and secrete key");
-                processDetails(returnData, secretKey);
-            }
-
-            @Override
-            public void onFailure(Exception e) {
-
-                Log.e(TAG, "Send config data : Error : " + e.getMessage());
-
-                runOnUiThread(new Runnable() {
-
-                    @Override
-                    public void run() {
-
+        provisionManager.getEspDevice().sendDataToCustomEndPoint(
+            AppConstants.HANDLER_RM_USER_MAPPING, payload.toByteArray(),
+            new ResponseListener() {
+                @Override public void onSuccess(byte[] returnData) {
+                    Log.d(TAG, "Successfully sent user id and secret key");
+                    processDetails(returnData, secretKey);
+                }
+                @Override public void onFailure(Exception e) {
+                    Log.e(TAG, "Send config data : Error : " + e.getMessage());
+                    runOnUiThread(() -> {
                         tick1.setImageResource(R.drawable.ic_error);
                         tick1.setVisibility(View.VISIBLE);
                         progress1.setVisibility(View.GONE);
                         tvErrAtStep1.setVisibility(View.VISIBLE);
                         tvErrAtStep1.setText(R.string.error_prov_step_1);
                         hideLoading();
-                    }
-                });
-
-                e.printStackTrace();
-            }
-        });
+                    });
+                    e.printStackTrace();
+                }
+            });
     }
 
     private void processDetails(byte[] responseData, String secretKey) {
-
         try {
-            EspRmakerUserMapping.RMakerConfigPayload payload = EspRmakerUserMapping.RMakerConfigPayload.parseFrom(responseData);
+            EspRmakerUserMapping.RMakerConfigPayload payload =
+                EspRmakerUserMapping.RMakerConfigPayload.parseFrom(responseData);
             EspRmakerUserMapping.RespSetUserMapping response = payload.getRespSetUserMapping();
-
             if (response.getStatus() == EspRmakerUserMapping.RMakerConfigStatus.Success) {
-
-                receivedNodeId = response.getNodeId();
-                this.secretKey = secretKey;
-
+                receivedNodeId  = response.getNodeId();
+                this.secretKey  = secretKey;
                 provision();
             }
-
         } catch (InvalidProtocolBufferException e) {
-
             e.printStackTrace();
-            runOnUiThread(new Runnable() {
-
-                @Override
-                public void run() {
-
-                    tick1.setImageResource(R.drawable.ic_error);
-                    tick1.setVisibility(View.VISIBLE);
-                    progress1.setVisibility(View.GONE);
-                    tvErrAtStep1.setVisibility(View.VISIBLE);
-                    tvErrAtStep1.setText(R.string.error_prov_step_1);
-                    hideLoading();
-                }
+            runOnUiThread(() -> {
+                tick1.setImageResource(R.drawable.ic_error);
+                tick1.setVisibility(View.VISIBLE);
+                progress1.setVisibility(View.GONE);
+                tvErrAtStep1.setVisibility(View.VISIBLE);
+                tvErrAtStep1.setText(R.string.error_prov_step_1);
+                hideLoading();
             });
         }
     }
 
     private void addDeviceToCloud(final ApiResponseListener responseListener) {
-
         Log.d(TAG, "Add device to cloud, count : " + addDeviceReqCount);
         apiManager.addNode(receivedNodeId, secretKey, new ApiResponseListener() {
-
-            @Override
-            public void onSuccess(Bundle data) {
+            @Override public void onSuccess(Bundle data) {
                 responseListener.onSuccess(null);
             }
-
-            @Override
-            public void onResponseFailure(Exception exception) {
+            @Override public void onResponseFailure(Exception exception) {
                 exception.printStackTrace();
                 responseListener.onNetworkFailure(exception);
             }
-
-            @Override
-            public void onNetworkFailure(Exception exception) {
+            @Override public void onNetworkFailure(Exception exception) {
                 exception.printStackTrace();
                 responseListener.onNetworkFailure(exception);
             }
@@ -881,68 +738,37 @@ public class ProvisionActivity extends AppCompatActivity {
     }
 
     private Runnable addDeviceTask = new Runnable() {
-
-        @Override
-        public void run() {
-
+        @Override public void run() {
             addDeviceReqCount++;
-
             addDeviceToCloud(new ApiResponseListener() {
-
-                @Override
-                public void onSuccess(Bundle data) {
-
-                    runOnUiThread(new Runnable() {
-
-                        @Override
-                        public void run() {
-                            doStep4();
-                        }
-                    });
+                @Override public void onSuccess(Bundle data) {
+                    runOnUiThread(() -> doStep4());
                 }
-
-                @Override
-                public void onResponseFailure(Exception exception) {
-
+                @Override public void onResponseFailure(Exception exception) {
                     if (addDeviceReqCount == 7) {
-
-                        runOnUiThread(new Runnable() {
-
-                            @Override
-                            public void run() {
-
-                                tick3.setImageResource(R.drawable.ic_error);
-                                tick3.setVisibility(View.VISIBLE);
-                                progress3.setVisibility(View.GONE);
-                                tvErrAtStep3.setVisibility(View.VISIBLE);
-                                tvErrAtStep3.setText(R.string.error_prov_step_3);
-                                tvProvError.setVisibility(View.VISIBLE);
-                                hideLoading();
-                            }
+                        runOnUiThread(() -> {
+                            tick3.setImageResource(R.drawable.ic_error);
+                            tick3.setVisibility(View.VISIBLE);
+                            progress3.setVisibility(View.GONE);
+                            tvErrAtStep3.setVisibility(View.VISIBLE);
+                            tvErrAtStep3.setText(R.string.error_prov_step_3);
+                            tvProvError.setVisibility(View.VISIBLE);
+                            hideLoading();
                         });
                     } else {
                         handler.postDelayed(addDeviceTask, ADD_DEVICE_REQ_TIME);
                     }
                 }
-
-                @Override
-                public void onNetworkFailure(Exception exception) {
-
+                @Override public void onNetworkFailure(Exception exception) {
                     if (addDeviceReqCount == 7) {
-
-                        runOnUiThread(new Runnable() {
-
-                            @Override
-                            public void run() {
-
-                                tick3.setImageResource(R.drawable.ic_error);
-                                tick3.setVisibility(View.VISIBLE);
-                                progress3.setVisibility(View.GONE);
-                                tvErrAtStep3.setVisibility(View.VISIBLE);
-                                tvErrAtStep3.setText(R.string.error_prov_step_3);
-                                tvProvError.setVisibility(View.VISIBLE);
-                                hideLoading();
-                            }
+                        runOnUiThread(() -> {
+                            tick3.setImageResource(R.drawable.ic_error);
+                            tick3.setVisibility(View.VISIBLE);
+                            progress3.setVisibility(View.GONE);
+                            tvErrAtStep3.setVisibility(View.VISIBLE);
+                            tvErrAtStep3.setText(R.string.error_prov_step_3);
+                            tvProvError.setVisibility(View.VISIBLE);
+                            hideLoading();
                         });
                     } else {
                         handler.postDelayed(addDeviceTask, ADD_DEVICE_REQ_TIME);
@@ -952,89 +778,62 @@ public class ProvisionActivity extends AppCompatActivity {
         }
     };
 
+    // ============================================================
+    // getNodeStatusTask — آخر خطوة: الجهاز متصل بالسحابة
+    // هنا نفتح الواجهة الديناميكية
+    // ============================================================
     private Runnable getNodeStatusTask = new Runnable() {
-
-        @Override
-        public void run() {
-
-            if (isFinishing()) {
-                return;
-            }
+        @Override public void run() {
+            if (isFinishing()) return;
             apiManager.getNodeStatus(receivedNodeId, new ApiResponseListener() {
+                @Override public void onSuccess(Bundle data) {
+                    runOnUiThread(() -> {
+                        EspApplication espApp = (EspApplication) getApplicationContext();
+                        EspNode espNode = espApp.nodeMap.get(receivedNodeId);
+                        if (espNode != null && espNode.isOnline()) {
+                            ArrayList<Service> services = espNode.getServices();
+                            boolean isTimeZoneServiceAvailable = false;
+                            String paramName = "";
 
-                @Override
-                public void onSuccess(Bundle data) {
-
-                    runOnUiThread(new Runnable() {
-
-                        @Override
-                        public void run() {
-                            EspApplication espApp = (EspApplication) getApplicationContext();
-                            EspNode espNode = espApp.nodeMap.get(receivedNodeId);
-                            if (espNode != null && espNode.isOnline()) {
-
-                                ArrayList<Service> services = espNode.getServices();
-                                boolean isTimeZoneServiceAvailable = false;
-                                String paramName = "";
-
-                                for (int i = 0; i < services.size(); i++) {
-
-                                    Service s = services.get(i);
-                                    if (!TextUtils.isEmpty(s.getType()) && s.getType().equals(AppConstants.SERVICE_TYPE_TIME)) {
-
-                                        ArrayList<Param> timeParams = s.getParams();
-                                        for (int index = 0; index < timeParams.size(); index++) {
-                                            if (AppConstants.PARAM_TYPE_TZ.equals(timeParams.get(index).getParamType())) {
-                                                isTimeZoneServiceAvailable = true;
-                                                paramName = timeParams.get(index).getName();
-                                                break;
-                                            }
-                                        }
-                                        if (isTimeZoneServiceAvailable) {
+                            for (int i = 0; i < services.size(); i++) {
+                                Service s = services.get(i);
+                                if (!TextUtils.isEmpty(s.getType()) &&
+                                    s.getType().equals(AppConstants.SERVICE_TYPE_TIME)) {
+                                    ArrayList<Param> timeParams = s.getParams();
+                                    for (int index = 0; index < timeParams.size(); index++) {
+                                        if (AppConstants.PARAM_TYPE_TZ.equals(
+                                                timeParams.get(index).getParamType())) {
+                                            isTimeZoneServiceAvailable = true;
+                                            paramName = timeParams.get(index).getName();
                                             break;
                                         }
                                     }
+                                    if (isTimeZoneServiceAvailable) break;
                                 }
+                            }
 
-                                if (isTimeZoneServiceAvailable) {
-
-                                    Log.e(TAG, "Time zone service is available");
-                                    TimeZone tz = TimeZone.getDefault();
-                                    String timeZoneId = tz.getID();
-
-                                    JsonObject body = new JsonObject();
-                                    JsonObject jsonParam = new JsonObject();
-                                    jsonParam.addProperty(paramName, timeZoneId);
-                                    body.add(AppConstants.KEY_TIME, jsonParam);
-                                    apiManager.updateParamValue(espNode.getNodeId(), body, new ApiResponseListener() {
-
-                                        @Override
-                                        public void onSuccess(Bundle data) {
+                            if (isTimeZoneServiceAvailable) {
+                                Log.e(TAG, "Time zone service is available");
+                                TimeZone tz = TimeZone.getDefault();
+                                String timeZoneId = tz.getID();
+                                JsonObject body = new JsonObject();
+                                JsonObject jsonParam = new JsonObject();
+                                jsonParam.addProperty(paramName, timeZoneId);
+                                body.add(AppConstants.KEY_TIME, jsonParam);
+                                apiManager.updateParamValue(espNode.getNodeId(), body,
+                                    new ApiResponseListener() {
+                                        @Override public void onSuccess(Bundle data) {
                                             handler.removeCallbacks(nodeStatusReqFailed);
-                                            tick5.setImageResource(R.drawable.ic_checkbox_on);
-                                            tick5.setVisibility(View.VISIBLE);
-                                            progress5.setVisibility(View.GONE);
-                                            tvProvSuccess.setVisibility(View.VISIBLE);
-
-                                            // ===== طوافة الوطني: فتح الواجهة الديناميكية بعد نجاح التوقيت (الموقع 1) =====
-                                            UiJsonFetchHelper.INSTANCE.navigateAfterProvision(
-                                                ProvisionActivity.this,
-                                                receivedNodeId,
-                                                espApSsid
-                                            );
+                                            showSuccessAndNavigate();
                                         }
-
-                                        @Override
-                                        public void onResponseFailure(Exception exception) {
+                                        @Override public void onResponseFailure(Exception exception) {
                                             Log.e(TAG, "Failed to send time zone value");
                                             handler.removeCallbacks(getNodeStatusTask);
                                             tick5.setImageResource(R.drawable.ic_alert);
                                             tick5.setVisibility(View.VISIBLE);
                                             progress5.setVisibility(View.GONE);
                                         }
-
-                                        @Override
-                                        public void onNetworkFailure(Exception exception) {
+                                        @Override public void onNetworkFailure(Exception exception) {
                                             Log.e(TAG, "Failed to send time zone value");
                                             handler.removeCallbacks(getNodeStatusTask);
                                             tick5.setImageResource(R.drawable.ic_alert);
@@ -1042,37 +841,22 @@ public class ProvisionActivity extends AppCompatActivity {
                                             progress5.setVisibility(View.GONE);
                                         }
                                     });
-                                } else {
-                                    Log.e(TAG, "Time zone service is not available");
-                                    tick5.setImageResource(R.drawable.ic_checkbox_on);
-                                    tick5.setVisibility(View.VISIBLE);
-                                    progress5.setVisibility(View.GONE);
-                                    tvProvSuccess.setVisibility(View.VISIBLE);
-                                    handler.removeCallbacks(nodeStatusReqFailed);
-
-                                    // ===== طوافة الوطني: فتح الواجهة الديناميكية في حال غياب خدمة التوقيت (الموقع 2) =====
-                                    UiJsonFetchHelper.INSTANCE.navigateAfterProvision(
-                                        ProvisionActivity.this,
-                                        receivedNodeId,
-                                        espApSsid
-                                    );
-                                }
                             } else {
-                                handler.removeCallbacks(getNodeStatusTask);
-                                handler.postDelayed(getNodeStatusTask, 2000);
+                                Log.e(TAG, "Time zone service is not available");
+                                handler.removeCallbacks(nodeStatusReqFailed);
+                                showSuccessAndNavigate();
                             }
+                        } else {
+                            handler.removeCallbacks(getNodeStatusTask);
+                            handler.postDelayed(getNodeStatusTask, 2000);
                         }
                     });
                 }
-
-                @Override
-                public void onResponseFailure(Exception exception) {
+                @Override public void onResponseFailure(Exception exception) {
                     handler.removeCallbacks(getNodeStatusTask);
                     handler.postDelayed(getNodeStatusTask, 2000);
                 }
-
-                @Override
-                public void onNetworkFailure(Exception exception) {
+                @Override public void onNetworkFailure(Exception exception) {
                     handler.removeCallbacks(getNodeStatusTask);
                     handler.postDelayed(getNodeStatusTask, 2000);
                 }
@@ -1080,73 +864,75 @@ public class ProvisionActivity extends AppCompatActivity {
         }
     };
 
-    private Runnable nodeStatusReqFailed = new Runnable() {
+    // ============================================================
+    // showSuccessAndNavigate — عرض ✅ ثم فتح الواجهة الديناميكية
+    // ============================================================
+    private void showSuccessAndNavigate() {
+        tick5.setImageResource(R.drawable.ic_checkbox_on);
+        tick5.setVisibility(View.VISIBLE);
+        progress5.setVisibility(View.GONE);
+        tvProvSuccess.setVisibility(View.VISIBLE);
 
-        @Override
-        public void run() {
+        // ===== طوافة الوطني: فتح الواجهة الديناميكية =====
+        final String serviceKey = espApSsid.isEmpty() ? "Tawafa_1" : espApSsid;
+        Log.d(TAG, "[TAWAFA] navigateAfterProvision — node=" + receivedNodeId
+              + " key=" + serviceKey + " fetched=" + uiJsonFetched);
 
-            if (isFinishing()) {
-                return;
-            }
-            Log.d(TAG, "Stop node status polling. Timeout");
-            handler.removeCallbacks(getNodeStatusTask);
-            tick5.setImageResource(R.drawable.ic_alert);
-            tick5.setVisibility(View.VISIBLE);
-            progress5.setVisibility(View.GONE);
-        }
+        UiJsonFetchHelper.INSTANCE.navigateAfterProvision(
+            ProvisionActivity.this,
+            receivedNodeId,
+            serviceKey
+        );
+    }
+
+    private Runnable nodeStatusReqFailed = () -> {
+        if (isFinishing()) return;
+        Log.d(TAG, "Stop node status polling. Timeout");
+        handler.removeCallbacks(getNodeStatusTask);
+        tick5.setImageResource(R.drawable.ic_alert);
+        tick5.setVisibility(View.VISIBLE);
+        progress5.setVisibility(View.GONE);
     };
 
-    private Runnable wifiConnectTimeoutTask = new Runnable() {
-        @Override
-        public void run() {
-            Log.e(TAG, "WiFi connection confirmation timed out");
-            runOnUiThread(() -> {
-                tick2.setImageResource(R.drawable.ic_error);
-                tick2.setVisibility(View.VISIBLE);
-                progress2.setVisibility(View.GONE);
-                tvErrAtStep2.setVisibility(View.VISIBLE);
-                tvErrAtStep2.setText(R.string.error_wifi_connection_failed);
-                tvProvError.setVisibility(View.VISIBLE);
-                hideLoading();
-            });
-        }
+    private Runnable wifiConnectTimeoutTask = () -> {
+        Log.e(TAG, "WiFi connection confirmation timed out");
+        runOnUiThread(() -> {
+            tick2.setImageResource(R.drawable.ic_error);
+            tick2.setVisibility(View.VISIBLE);
+            progress2.setVisibility(View.GONE);
+            tvErrAtStep2.setVisibility(View.VISIBLE);
+            tvErrAtStep2.setText(R.string.error_wifi_connection_failed);
+            tvProvError.setVisibility(View.VISIBLE);
+            hideLoading();
+        });
     };
 
     private void showLoading() {
-
         btnOk.setEnabled(false);
         btnOk.setAlpha(0.5f);
     }
 
     public void hideLoading() {
-
         btnOk.setEnabled(true);
         btnOk.setAlpha(1f);
     }
 
     private void showAlertForDeviceDisconnected() {
-
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         builder.setCancelable(false);
         builder.setTitle(R.string.error_title);
         builder.setMessage(R.string.dialog_msg_ble_device_disconnection);
-
-        builder.setPositiveButton(R.string.btn_ok, new DialogInterface.OnClickListener() {
-
-            @Override
-            public void onClick(DialogInterface dialog, int which) {
-                dialog.dismiss();
-                finish();
-            }
+        builder.setPositiveButton(R.string.btn_ok, (dialog, which) -> {
+            dialog.dismiss();
+            finish();
         });
         builder.show();
     }
 
     private String bytesToHex(byte[] bytes, int offset, int length) {
         StringBuilder result = new StringBuilder();
-        for (int i = offset; i < offset + length && i < bytes.length; i++) {
+        for (int i = offset; i < offset + length && i < bytes.length; i++)
             result.append(String.format("%02x", bytes[i]));
-        }
         return result.toString();
     }
 }
