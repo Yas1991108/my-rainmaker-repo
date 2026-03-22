@@ -16,6 +16,7 @@ package com.espressif.ui.activities;
 
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.os.Handler;
 import android.text.TextUtils;
@@ -69,6 +70,13 @@ import rmaker_misc.EspRmakerChalResp.RMakerMiscMsgType;
 import rmaker_misc.EspRmakerChalResp.RMakerMiscPayload;
 import rmaker_misc.EspRmakerChalResp.RMakerMiscStatus;
 import rmaker_misc.EspRmakerChalResp.RespCRPayload;
+
+// استيراد مكتبات طوافة الوطني الجديدة
+import com.espressif.ui.dynamic.LocalApiClient;
+import com.espressif.ui.dynamic.UiConfigStorage;
+import kotlinx.coroutines.BuildersKt;
+import kotlinx.coroutines.Dispatchers;
+import kotlinx.coroutines.GlobalScope;
 
 public class ProvisionActivity extends AppCompatActivity {
 
@@ -297,6 +305,23 @@ public class ProvisionActivity extends AppCompatActivity {
 
         if (isSuccessInStep2) {
             tick2.setImageResource(R.drawable.ic_checkbox_on);
+            
+            // --- كود طوافة الوطني: جلب الواجهة فور نجاح الاتصال بالـ ESP32 ---
+            new Thread(() -> {
+                try {
+                    String json = BuildersKt.runBlocking(Dispatchers.getIO(), (scope, continuation) -> 
+                        LocalApiClient.INSTANCE.fetchUiConfig(continuation));
+                    
+                    if (json != null) {
+                        UiConfigStorage.INSTANCE.saveConfig(getApplicationContext(), ssidValue, json);
+                        Log.d("TAWAFA", "UI Config saved successfully!");
+                    }
+                } catch (Exception e) {
+                    Log.e("TAWAFA", "Failed to fetch UI: " + e.getMessage());
+                }
+            }).start();
+            // -----------------------------------------------------------
+            
         } else {
             tick2.setImageResource(R.drawable.ic_alert);
         }
