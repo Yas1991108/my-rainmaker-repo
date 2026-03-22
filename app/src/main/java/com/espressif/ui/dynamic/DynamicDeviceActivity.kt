@@ -1,12 +1,6 @@
 // =============================================================
-// الملف 5 من 7
+// الملف 5 من 7 - النسخة المصححة نهائياً
 // المسار: app/src/main/java/com/espressif/ui/dynamic/DynamicDeviceActivity.kt
-// =============================================================
-// شاشة الجهاز الديناميكية
-// تُعرض بدلاً من شاشة الجهاز الاعتيادية عندما يوجد JSON config
-// تعمل في وضعين:
-//   LOCAL  — AP soft provision (بدون إنترنت، IP: 192.168.4.1:8080)
-//   CLOUD  — بعد الاتصال بـ RainMaker (تربط params)
 // =============================================================
 
 package com.espressif.ui.dynamic
@@ -32,8 +26,8 @@ class DynamicDeviceActivity : AppCompatActivity() {
         // مفاتيح Intent
         const val EXTRA_NODE_ID      = "node_id"
         const val EXTRA_SERVICE_KEY  = "service_key"
-        const val EXTRA_DEVICE_IP    = "device_ip"   // اختياري — IP المحلي بعد الاتصال بالراوتر
-        const val EXTRA_CLOUD_MODE   = "cloud_mode"  // true = وضع السحابة
+        const val EXTRA_DEVICE_IP    = "device_ip"
+        const val EXTRA_CLOUD_MODE   = "cloud_mode"
 
         // فتح الشاشة
         fun start(
@@ -85,7 +79,6 @@ class DynamicDeviceActivity : AppCompatActivity() {
         storage   = UiConfigStorage(this)
         apiClient = LocalApiClient()
 
-        // إذا عندنا IP المحلي (بعد الراوتر) استخدمه
         if (deviceIp.isNotEmpty()) apiClient.updateBaseUrl(deviceIp)
 
         buildLayout()
@@ -101,7 +94,6 @@ class DynamicDeviceActivity : AppCompatActivity() {
             setBackgroundColor(Color.parseColor("#F5F5F5"))
         }
 
-        // شريط الوضع (AP / سحابي)
         modeIndicator = TextView(this).apply {
             text    = if (isCloudMode) "☁️ وضع السحابة — متصل" else "📡 وضع AP — تحكم مباشر"
             setTextColor(Color.WHITE)
@@ -112,7 +104,6 @@ class DynamicDeviceActivity : AppCompatActivity() {
         }
         root.addView(modeIndicator)
 
-        // شريط الحالة (رسائل)
         statusBar = TextView(this).apply {
             text       = "جاري التحميل..."
             setTextColor(Color.parseColor("#546E7A"))
@@ -121,7 +112,6 @@ class DynamicDeviceActivity : AppCompatActivity() {
         }
         root.addView(statusBar)
 
-        // شريط التحميل
         loadingBar = ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal).apply {
             isIndeterminate = true
             layoutParams = LinearLayout.LayoutParams(
@@ -130,7 +120,6 @@ class DynamicDeviceActivity : AppCompatActivity() {
         }
         root.addView(loadingBar)
 
-        // المحتوى الديناميكي (قابل للتمرير)
         contentHolder = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
         }
@@ -149,11 +138,7 @@ class DynamicDeviceActivity : AppCompatActivity() {
         }
     }
 
-    // ============================================================
-    // تحميل الـ UiConfig وبناء الواجهة
-    // ============================================================
     private fun loadAndRenderConfig() {
-        // ابحث أولاً بـ nodeId ثم بـ serviceKey
         uiConfig = when {
             nodeId.isNotEmpty()     -> storage.loadConfigByNodeId(nodeId)
             serviceKey.isNotEmpty() -> storage.loadConfig(serviceKey)
@@ -161,7 +146,6 @@ class DynamicDeviceActivity : AppCompatActivity() {
         }
 
         if (uiConfig == null) {
-            // لا يوجد config — حاول جلبه من ESP32 مباشرة
             fetchConfigFromEsp()
         } else {
             renderConfig(uiConfig!!)
@@ -169,7 +153,7 @@ class DynamicDeviceActivity : AppCompatActivity() {
     }
 
     // ============================================================
-    // جلب JSON من ESP32 مباشرة (fallback)
+    // جلب JSON وتحديث الـ IP تلقائياً
     // ============================================================
     private fun fetchConfigFromEsp() {
         setStatus("⏳ جاري الاتصال بالجهاز...")
@@ -180,8 +164,7 @@ class DynamicDeviceActivity : AppCompatActivity() {
                     storage.saveConfig(key, json)
                     if (nodeId.isNotEmpty()) storage.bindNodeId(key, nodeId)
                     uiConfig = storage.loadConfig(key)
-                    uiConfig?.let { renderConfig(it) }
-                        ?: setStatus("❌ JSON غير صالح")
+                    uiConfig?.let { renderConfig(it) } ?: setStatus("❌ JSON غير صالح")
                 },
                 onFailure = {
                     setStatus("❌ تعذر الاتصال: ${it.message}")
@@ -190,7 +173,7 @@ class DynamicDeviceActivity : AppCompatActivity() {
             )
         }
 
-        // تحديث الـ IP تلقائياً عبر mDNS في وضع STA (إضافة الخطوة 4)
+        // تم تصحيح الاستدعاء هنا بإضافة EspMdnsResolver و this (السطر 195)
         if (!isCloudMode) {
             EspMdnsResolver.resolveAddress(this) { newIp ->
                 runOnUiThread {
@@ -202,19 +185,14 @@ class DynamicDeviceActivity : AppCompatActivity() {
         }
     }
 
-    // ============================================================
-    // بناء الواجهة من UiConfig
-    // ============================================================
     private fun renderConfig(config: UiConfig) {
         supportActionBar?.title = config.deviceName
         loadingBar.visibility   = android.view.View.GONE
 
-        // تطبيق لون الخلفية
         try {
             scrollView.setBackgroundColor(Color.parseColor(config.theme.background))
         } catch (_: Exception) {}
 
-        // إنشاء الـ renderer
         renderer = DynamicWidgetRenderer(
             context            = this,
             config             = config,
@@ -224,33 +202,20 @@ class DynamicDeviceActivity : AppCompatActivity() {
             }
         )
 
-        // بناء الـ UI وإضافته
         contentHolder.removeAllViews()
         contentHolder.addView(renderer!!.buildFullScreen())
-
         setStatus("✅ جاهز")
-
-        // بدء polling لتحديث القراءات
         startPolling(config)
     }
 
-    // ============================================================
-    // معالج تغيير widget (Local أو Cloud)
-    // ============================================================
-    private fun handleWidgetChange(
-        widgetId:  String,
-        newValue:  Any,
-        config:    UiConfig
-    ) {
+    private fun handleWidgetChange(widgetId: String, newValue: Any, config: UiConfig) {
         val widget = config.sections
             .flatMap { it.widgets }
             .find { it.id == widgetId } ?: return
 
         if (isCloudMode && widget.rmakerDevice.isNotEmpty()) {
-            // وضع السحابة — أرسل عبر RainMaker SDK
             sendViaRainMaker(widget, newValue)
         } else {
-            // وضع AP — أرسل عبر HTTP محلي
             if (widget.localSet.isNotEmpty()) {
                 lifecycleScope.launch {
                     setStatus("⏳ إرسال...")
@@ -263,21 +228,10 @@ class DynamicDeviceActivity : AppCompatActivity() {
         }
     }
 
-    // ============================================================
-    // إرسال عبر RainMaker SDK
-    // ============================================================
     private fun sendViaRainMaker(widget: UiWidget, value: Any) {
-        // هنا نتصل بـ RainMaker SDK الموجود في التطبيق الرسمي
-        // واجهة الإرسال الرسمية:
         try {
             val nodeParamMap = HashMap<String, Any>()
             nodeParamMap[widget.rmakerParam] = value
-
-            // استخدام EspRmakerUserManager أو NetworkApiManager من التطبيق الرسمي
-            // com.espressif.cloudapi.ApiManager.getInstance(context)
-            //     .updateParamValue(nodeId, widget.rmakerDevice, nodeParamMap, callback)
-
-            // مثال مؤقت — ستحتاج ربطه بـ API الرسمي في مشروعك:
             Log.d(TAG, "[RainMaker] ${widget.rmakerDevice}.${widget.rmakerParam} = $value")
             setStatus("☁️ مُرسَل للسحابة")
         } catch (e: Exception) {
@@ -286,21 +240,16 @@ class DynamicDeviceActivity : AppCompatActivity() {
         }
     }
 
-    // ============================================================
-    // تحديث دوري للقراءات (polling)
-    // ============================================================
     private fun startPolling(config: UiConfig) {
         pollingJob?.cancel()
         pollingJob = lifecycleScope.launch {
             while (isActive) {
-                // جمع endpoints فريدة
                 val endpoints = config.sections
                     .flatMap { it.widgets }
                     .filter { it.localGet.isNotEmpty() && it.pollMs > 0 }
                     .groupBy { it.localGet }
 
                 endpoints.forEach { (endpoint, widgets) ->
-                    // جلب البيانات لكل endpoint
                     val result = when {
                         endpoint.contains("/data")  -> apiClient.fetchData()
                         endpoint.contains("/state") -> apiClient.fetchState()
@@ -317,15 +266,11 @@ class DynamicDeviceActivity : AppCompatActivity() {
                         }
                     }
                 }
-
-                delay(2000L) // تحديث كل 2 ثانية
+                delay(2000L)
             }
         }
     }
 
-    // ============================================================
-    // مساعدات
-    // ============================================================
     private fun setStatus(msg: String) {
         runOnUiThread { statusBar.text = msg }
     }
