@@ -71,12 +71,8 @@ import rmaker_misc.EspRmakerChalResp.RMakerMiscPayload;
 import rmaker_misc.EspRmakerChalResp.RMakerMiscStatus;
 import rmaker_misc.EspRmakerChalResp.RespCRPayload;
 
-// استيراد مكتبات طوافة الوطني الجديدة
-import com.espressif.ui.dynamic.LocalApiClient;
-import com.espressif.ui.dynamic.UiConfigStorage;
-import kotlinx.coroutines.BuildersKt;
-import kotlinx.coroutines.Dispatchers;
-import kotlinx.coroutines.GlobalScope;
+// ===== استيراد مساعد طوافة الوطني =====
+import com.espressif.ui.dynamic.UiJsonFetchHelper;
 
 public class ProvisionActivity extends AppCompatActivity {
 
@@ -106,6 +102,10 @@ public class ProvisionActivity extends AppCompatActivity {
     private boolean isChallengeResponseFlow = false;
     private Handler wifiConnectHandler = new Handler();
 
+    // ===== متغير طوافة الوطني: SSID الخاص بـ ESP32 =====
+    // يُحفظ في بداية الـ Activity قبل أي تغيير في الشبكة
+    private String espApSsid = "";
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
 
@@ -120,6 +120,12 @@ public class ProvisionActivity extends AppCompatActivity {
 
         handler = new Handler();
         apiManager = ApiManager.getInstance(getApplicationContext());
+
+        // ===== طوافة الوطني: احفظ SSID الـ ESP32 الآن =====
+        // الهاتف متصل بـ ESP32's AP في هذه اللحظة
+        espApSsid = UiJsonFetchHelper.INSTANCE.getCurrentApSsid(getApplicationContext());
+        Log.d(TAG, "[TAWAFA] ESP32 AP SSID: " + espApSsid);
+
         initViews();
         checkDeviceCapabilities();
 
@@ -305,23 +311,19 @@ public class ProvisionActivity extends AppCompatActivity {
 
         if (isSuccessInStep2) {
             tick2.setImageResource(R.drawable.ic_checkbox_on);
-            
-            // --- كود طوافة الوطني: جلب الواجهة فور نجاح الاتصال بالـ ESP32 ---
-            new Thread(() -> {
-                try {
-                    String json = BuildersKt.runBlocking(Dispatchers.getIO(), (scope, continuation) -> 
-                        LocalApiClient.INSTANCE.fetchUiConfig(continuation));
-                    
-                    if (json != null) {
-                        UiConfigStorage.INSTANCE.saveConfig(getApplicationContext(), ssidValue, json);
-                        Log.d("TAWAFA", "UI Config saved successfully!");
-                    }
-                } catch (Exception e) {
-                    Log.e("TAWAFA", "Failed to fetch UI: " + e.getMessage());
-                }
-            }).start();
-            // -----------------------------------------------------------
-            
+
+            // ===== طوافة الوطني: جلب JSON الواجهة من ESP32 =====
+            // الهاتف لا يزال على شبكة ESP32's AP في هذه اللحظة
+            // UiJsonFetchHelper يتعامل مع كل شيء بشكل آمن في الخلفية
+            if (!espApSsid.isEmpty()) {
+                UiJsonFetchHelper.INSTANCE.fetchOnApConnection(
+                    getApplicationContext(),
+                    espApSsid
+                );
+                Log.d(TAG, "[TAWAFA] Fetching UI config for: " + espApSsid);
+            }
+            // ====================================================
+
         } else {
             tick2.setImageResource(R.drawable.ic_alert);
         }
@@ -367,6 +369,17 @@ public class ProvisionActivity extends AppCompatActivity {
         // Track device addition for in-app review
         InAppReviewManager.Companion.getInstance(ProvisionActivity.this)
                 .trackDeviceAddition(ProvisionActivity.this);
+
+        // ===== طوافة الوطني: ربط nodeId بـ service_name =====
+        if (!espApSsid.isEmpty() && !TextUtils.isEmpty(receivedNodeId)) {
+            UiJsonFetchHelper.INSTANCE.bindNode(
+                getApplicationContext(),
+                espApSsid,
+                receivedNodeId
+            );
+            Log.d(TAG, "[TAWAFA] Bound node: " + receivedNodeId + " ↔ " + espApSsid);
+        }
+        // ====================================================
 
         // Try to get node details even if local control failed
         apiManager.getNodeDetails(receivedNodeId, new ApiResponseListener() {
