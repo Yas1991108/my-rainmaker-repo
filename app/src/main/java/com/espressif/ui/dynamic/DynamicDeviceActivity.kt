@@ -1,5 +1,5 @@
 // =============================================================
-// الملف 5 من 7 - النسخة المصححة نهائياً
+// الملف 5 من 7 - النسخة المصححة نهائياً (إصلاح الـ Import والـ Reference)
 // المسار: app/src/main/java/com/espressif/ui/dynamic/DynamicDeviceActivity.kt
 // =============================================================
 
@@ -17,19 +17,19 @@ import android.widget.*
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.*
+// إضافة استيراد الكلاس لضمان رؤيته من قبل المترجم
+import com.espressif.ui.dynamic.EspMdnsResolver
 
 class DynamicDeviceActivity : AppCompatActivity() {
 
     companion object {
         private const val TAG = "DynamicDeviceActivity"
 
-        // مفاتيح Intent
         const val EXTRA_NODE_ID      = "node_id"
         const val EXTRA_SERVICE_KEY  = "service_key"
         const val EXTRA_DEVICE_IP    = "device_ip"
         const val EXTRA_CLOUD_MODE   = "cloud_mode"
 
-        // فتح الشاشة
         fun start(
             context:     Context,
             nodeId:      String,
@@ -46,9 +46,6 @@ class DynamicDeviceActivity : AppCompatActivity() {
         }
     }
 
-    // ============================================================
-    // المتغيرات
-    // ============================================================
     private lateinit var storage:    UiConfigStorage
     private lateinit var apiClient:  LocalApiClient
     private var renderer:            DynamicWidgetRenderer? = null
@@ -58,16 +55,12 @@ class DynamicDeviceActivity : AppCompatActivity() {
     private var isCloudMode:         Boolean                = false
     private var pollingJob:          Job?                   = null
 
-    // Views
     private lateinit var scrollView:      ScrollView
     private lateinit var contentHolder:   LinearLayout
     private lateinit var loadingBar:      ProgressBar
     private lateinit var statusBar:       TextView
     private lateinit var modeIndicator:   TextView
 
-    // ============================================================
-    // onCreate
-    // ============================================================
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -85,9 +78,6 @@ class DynamicDeviceActivity : AppCompatActivity() {
         loadAndRenderConfig()
     }
 
-    // ============================================================
-    // بناء الـ Layout الأساسي برمجياً
-    // ============================================================
     private fun buildLayout() {
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -152,9 +142,6 @@ class DynamicDeviceActivity : AppCompatActivity() {
         }
     }
 
-    // ============================================================
-    // جلب JSON وتحديث الـ IP تلقائياً
-    // ============================================================
     private fun fetchConfigFromEsp() {
         setStatus("⏳ جاري الاتصال بالجهاز...")
         lifecycleScope.launch {
@@ -173,9 +160,9 @@ class DynamicDeviceActivity : AppCompatActivity() {
             )
         }
 
-        // تم تصحيح الاستدعاء هنا بإضافة EspMdnsResolver و this (السطر 195)
+        // التصحيح في السطر 178 (استدعاء كامل مع الكلاس والـ Context)
         if (!isCloudMode) {
-            EspMdnsResolver.resolveAddress(this) { newIp ->
+            com.espressif.ui.dynamic.EspMdnsResolver.resolveAddress(this) { newIp ->
                 runOnUiThread {
                     Log.d(TAG, "mDNS Resolved IP: $newIp")
                     apiClient.updateBaseUrl(newIp)
