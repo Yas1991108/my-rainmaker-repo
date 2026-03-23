@@ -12,4 +12,10 @@
         android:orderInCategory="100"
         android:title="@string/title_activity_create_group"
         app:showAsAction="never" />
+    <!-- ← إضافة Settings -->
+    <item
+        android:id="@+id/action_settings_tab"
+        android:orderInCategory="200"
+        android:title="@string/tab_settings"
+        app:showAsAction="never" />
 </menu>
