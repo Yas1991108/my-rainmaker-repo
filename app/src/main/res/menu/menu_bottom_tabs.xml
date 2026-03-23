@@ -1,6 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
     المسار: app/src/main/res/menu/menu_bottom_tabs.xml
+    الحد الأقصى لـ BottomNavigationView = 5 تبويبات
+    الترتيب: Home, Devices, Schedules, Scenes, Automations
+    Settings تم نقله لأيقونة في الـ Toolbar
 -->
 <menu xmlns:android="http://schemas.android.com/apk/res/android">
 
@@ -28,10 +31,5 @@
         android:id="@+id/action_automations"
         android:icon="@drawable/ic_tab_automations"
         android:title="@string/title_activity_automations" />
-
-    <item
-        android:id="@+id/action_user"
-        android:icon="@drawable/ic_tab_setting"
-        android:title="@string/tab_settings" />
 
 </menu>
