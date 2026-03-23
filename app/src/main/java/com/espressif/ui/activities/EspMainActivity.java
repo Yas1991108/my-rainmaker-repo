@@ -65,8 +65,8 @@ import com.espressif.ui.Utils;
 import com.espressif.ui.adapters.HomeScreenPagerAdapter;
 import com.espressif.ui.fragments.AutomationFragment;
 import com.espressif.ui.fragments.DevicesFragment;
+import com.espressif.ui.activities.AccountActivity;
 import com.espressif.ui.fragments.HomeFragment;
-import com.espressif.ui.fragments.UserProfileFragment;      // ← إضافة جديدة
 import com.espressif.ui.fragments.ScenesFragment;
 import com.espressif.ui.fragments.SchedulesFragment;
 import com.espressif.ui.models.Automation;
@@ -211,10 +211,9 @@ public class EspMainActivity extends AppCompatActivity {
             addDeviceBtnCLick();
             return true;
         } else if (item.getItemId() == R.id.action_settings_tab) {
-            // فتح تبويب Settings (آخر Fragment في ViewPager)
-            int settingsIndex = pagerAdapter.getCount() - 1;
-            viewPager.setCurrentItem(settingsIndex);
-            collapsingToolbarLayout.setTitle(getString(R.string.tab_settings));
+            // فتح شاشة Settings كـ Activity مستقلة
+            Intent settingsIntent = new Intent(EspMainActivity.this, AccountActivity.class);
+            startActivity(settingsIntent);
             return true;
         } else {
             return super.onOptionsItemSelected(item);
@@ -451,11 +450,12 @@ public class EspMainActivity extends AppCompatActivity {
             pagerAdapter.addFragment(automationFragment);
         }
 
-        // Settings: في ViewPager لكن بدون زر في BottomNav — يُفتح من النقاط الثلاث
-        pagerAdapter.addFragment(new UserProfileFragment());
+        // Settings يُفتح كـ Activity مستقلة — لا يوجد في ViewPager
 
         viewPager.setAdapter(pagerAdapter);
         viewPager.addOnPageChangeListener(pageChangeListener);
+        // منع السحب لما بعد آخر تبويب في BottomNav
+        viewPager.setOffscreenPageLimit(pagerAdapter.getCount());
     }
 
     // ============================================================
@@ -488,6 +488,9 @@ public class EspMainActivity extends AppCompatActivity {
 
         @Override
         public void onPageSelected(int position) {
+            // حماية: إذا كان position خارج حدود BottomNav (مثلاً Settings)
+            int navCount = bottomNavigationView.getMenu().size();
+            if (position >= navCount) return;
 
             if (prevMenuItem != null) {
                 prevMenuItem.setChecked(false);
