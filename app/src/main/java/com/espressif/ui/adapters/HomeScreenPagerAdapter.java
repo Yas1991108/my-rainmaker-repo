@@ -24,6 +24,7 @@ import androidx.fragment.app.FragmentPagerAdapter;
 import com.espressif.rainmaker.R;
 import com.espressif.ui.fragments.AutomationFragment;
 import com.espressif.ui.fragments.DevicesFragment;
+import com.espressif.ui.fragments.HomeFragment;          // ← إضافة جديدة
 import com.espressif.ui.fragments.ScenesFragment;
 import com.espressif.ui.fragments.SchedulesFragment;
 import com.espressif.ui.fragments.UserProfileFragment;
@@ -51,7 +52,10 @@ public class HomeScreenPagerAdapter extends FragmentPagerAdapter {
 
         Fragment page = fragmentList.get(position);
 
-        if (page instanceof DevicesFragment) {
+        // ← إضافة HomeFragment
+        if (page instanceof HomeFragment) {
+            return context.getString(R.string.home_tab_title);
+        } else if (page instanceof DevicesFragment) {
             return context.getString(R.string.devices_title);
         } else if (page instanceof SchedulesFragment) {
             return context.getString(R.string.title_activity_schedules);
@@ -75,7 +79,11 @@ public class HomeScreenPagerAdapter extends FragmentPagerAdapter {
         for (int i = 0; i < fragmentList.size(); i++) {
             Fragment page = fragmentList.get(i);
 
-            if (title.equals(context.getString(R.string.devices_title))
+            // ← إضافة HomeFragment
+            if (title.equals(context.getString(R.string.home_tab_title))
+                    && page instanceof HomeFragment) {
+                return i;
+            } else if (title.equals(context.getString(R.string.devices_title))
                     && page instanceof DevicesFragment) {
                 return i;
             } else if (title.equals(context.getString(R.string.title_activity_schedules))
@@ -95,6 +103,7 @@ public class HomeScreenPagerAdapter extends FragmentPagerAdapter {
         return 0;
     }
 
+    // addFragment يقبل Fragment فقط — لم يتغير
     public void addFragment(Fragment fragment) {
         fragmentList.add(fragment);
     }
