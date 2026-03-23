@@ -423,32 +423,32 @@ public class EspMainActivity extends AppCompatActivity {
 
         // ← 1. Home (جديد — الأول والافتراضي)
         homeFragment = HomeFragment.Companion.newInstance();
-        pagerAdapter.addFragment(homeFragment, getString(R.string.home_tab_title));
+        pagerAdapter.addFragment(homeFragment);
 
         // ← 2. Devices
         deviceFragment = new DevicesFragment();
-        pagerAdapter.addFragment(deviceFragment, getString(R.string.devices_title));
+        pagerAdapter.addFragment(deviceFragment);
 
         // ← 3. Schedules (إذا مدعوم)
         if (BuildConfig.isScheduleSupported) {
             scheduleFragment = new SchedulesFragment();
-            pagerAdapter.addFragment(scheduleFragment, getString(R.string.title_activity_schedule_details));
+            pagerAdapter.addFragment(scheduleFragment);
         }
 
         // ← 4. Scenes (إذا مدعوم)
         if (BuildConfig.isSceneSupported) {
             sceneFragment = new ScenesFragment();
-            pagerAdapter.addFragment(sceneFragment, getString(R.string.title_activity_scene_details));
+            pagerAdapter.addFragment(sceneFragment);
         }
 
         // ← 5. Automations (إذا مدعوم)
         if (BuildConfig.isAutomationSupported) {
             automationFragment = new AutomationFragment();
-            pagerAdapter.addFragment(automationFragment, getString(R.string.title_activity_automations));
+            pagerAdapter.addFragment(automationFragment);
         }
 
         // ← 6. Settings / UserProfile (الأخير)
-        pagerAdapter.addFragment(new UserProfileFragment(), getString(R.string.settings_title));
+        pagerAdapter.addFragment(new UserProfileFragment());
 
         viewPager.setAdapter(pagerAdapter);
         viewPager.addOnPageChangeListener(pageChangeListener);
