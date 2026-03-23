@@ -452,7 +452,9 @@ public class EspMainActivity extends AppCompatActivity {
             pagerAdapter.addFragment(automationFragment);
         }
 
-        // Settings يُفتح كـ Activity مستقلة — لا يوجد في ViewPager
+        // ← Settings: آخر Fragment في ViewPager
+        // الـ guard في pageChangeListener يمنع الـ crash عند السحب
+        pagerAdapter.addFragment(new UserProfileFragment());
 
         viewPager.setAdapter(pagerAdapter);
         viewPager.addOnPageChangeListener(pageChangeListener);
