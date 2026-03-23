@@ -34,6 +34,7 @@ import com.espressif.rainmaker.BuildConfig;
 import com.espressif.rainmaker.R;
 import com.espressif.ui.activities.EspMainActivity;
 import com.espressif.ui.activities.GroupDetailActivity;
+import com.espressif.ui.activities.AccountActivity;
 import com.espressif.ui.activities.GroupsActivity;
 import com.espressif.ui.adapters.GroupsPageAdapter;
 import com.espressif.ui.models.Group;
@@ -194,6 +195,11 @@ public class DevicesFragment extends Fragment {
                     case R.id.action_manage_group:
                         Intent intent1 = new Intent(getActivity(), GroupsActivity.class);
                         startActivity(intent1);
+                        return true;
+
+                    case R.id.action_settings_tab:
+                        Intent intentSettings = new Intent(getActivity(), AccountActivity.class);
+                        startActivity(intentSettings);
                         return true;
 
                     default:
