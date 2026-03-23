@@ -68,7 +68,6 @@ import com.espressif.ui.fragments.DevicesFragment;
 import com.espressif.ui.fragments.HomeFragment;      // ← إضافة جديدة
 import com.espressif.ui.fragments.ScenesFragment;
 import com.espressif.ui.fragments.SchedulesFragment;
-import com.espressif.ui.fragments.UserProfileFragment;
 import com.espressif.ui.models.Automation;
 import com.espressif.ui.models.Device;
 import com.espressif.ui.models.EspNode;
@@ -252,8 +251,7 @@ public class EspMainActivity extends AppCompatActivity {
                 askForAutomationName();
                 break;
 
-            case R.id.action_user:
-                break;
+            
         }
     }
 
@@ -362,7 +360,7 @@ public class EspMainActivity extends AppCompatActivity {
                     menuAdd.setVisible(espApp.sceneMap.size() > 0);
                     break;
 
-                case R.id.action_user:
+                default:
                     menuAdd.setVisible(false);
                     break;
             }
@@ -448,7 +446,6 @@ public class EspMainActivity extends AppCompatActivity {
         }
 
         // ← 6. Settings / UserProfile (الأخير)
-        pagerAdapter.addFragment(new UserProfileFragment());
 
         viewPager.setAdapter(pagerAdapter);
         viewPager.addOnPageChangeListener(pageChangeListener);
