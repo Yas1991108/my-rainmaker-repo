@@ -185,6 +185,8 @@
     <string name="tab_7d">7D</string>
     <string name="tab_4w">4W</string>
     <string name="tab_1y">1Y</string>
+    <!-- طوافة الوطني: عنوان تبويب Home -->
+    <string name="home_tab_title">Home</string>
 
     <!--Hint texts-->
     <string name="hint_username">Username</string>
