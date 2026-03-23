@@ -66,6 +66,7 @@ import com.espressif.ui.adapters.HomeScreenPagerAdapter;
 import com.espressif.ui.fragments.AutomationFragment;
 import com.espressif.ui.fragments.DevicesFragment;
 import com.espressif.ui.activities.AccountActivity;
+import com.espressif.ui.fragments.UserProfileFragment;
 import com.espressif.ui.fragments.HomeFragment;
 import com.espressif.ui.fragments.ScenesFragment;
 import com.espressif.ui.fragments.SchedulesFragment;
@@ -211,9 +212,10 @@ public class EspMainActivity extends AppCompatActivity {
             addDeviceBtnCLick();
             return true;
         } else if (item.getItemId() == R.id.action_settings_tab) {
-            // فتح شاشة Settings كـ Activity مستقلة
-            Intent settingsIntent = new Intent(EspMainActivity.this, AccountActivity.class);
-            startActivity(settingsIntent);
+            // فتح UserProfileFragment (Settings الكاملة) عبر ViewPager
+            int settingsIndex = pagerAdapter.getCount() - 1;
+            viewPager.setCurrentItem(settingsIndex);
+            collapsingToolbarLayout.setTitle(getString(R.string.tab_settings));
             return true;
         } else {
             return super.onOptionsItemSelected(item);
@@ -479,6 +481,15 @@ public class EspMainActivity extends AppCompatActivity {
     }
 
     // ============================================================
+    // openSettingsTab — يُستدعى من DevicesFragment
+    // ============================================================
+    public void openSettingsTab() {
+        int settingsIndex = pagerAdapter.getCount() - 1;
+        viewPager.setCurrentItem(settingsIndex);
+        collapsingToolbarLayout.setTitle(getString(R.string.tab_settings));
+    }
+
+    // ============================================================
     // pageChangeListener — مزامنة BottomNav مع ViewPager
     // ============================================================
     ViewPager.OnPageChangeListener pageChangeListener = new ViewPager.OnPageChangeListener() {
@@ -488,9 +499,14 @@ public class EspMainActivity extends AppCompatActivity {
 
         @Override
         public void onPageSelected(int position) {
-            // حماية: إذا كان position خارج حدود BottomNav (مثلاً Settings)
             int navCount = bottomNavigationView.getMenu().size();
-            if (position >= navCount) return;
+
+            if (position >= navCount) {
+                // هذا تبويب Settings — فقط حدّث العنوان بدون لمس BottomNav
+                collapsingToolbarLayout.setTitle(getString(R.string.tab_settings));
+                if (menuAdd != null) menuAdd.setVisible(false);
+                return;
+            }
 
             if (prevMenuItem != null) {
                 prevMenuItem.setChecked(false);
