@@ -65,7 +65,8 @@ import com.espressif.ui.Utils;
 import com.espressif.ui.adapters.HomeScreenPagerAdapter;
 import com.espressif.ui.fragments.AutomationFragment;
 import com.espressif.ui.fragments.DevicesFragment;
-import com.espressif.ui.fragments.HomeFragment;      // ← إضافة جديدة
+import com.espressif.ui.fragments.HomeFragment;
+import com.espressif.ui.fragments.UserProfileFragment;      // ← إضافة جديدة
 import com.espressif.ui.fragments.ScenesFragment;
 import com.espressif.ui.fragments.SchedulesFragment;
 import com.espressif.ui.models.Automation;
@@ -206,12 +207,17 @@ public class EspMainActivity extends AppCompatActivity {
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
-        switch (item.getItemId()) {
-            case R.id.action_add:
-                addDeviceBtnCLick();
-                return true;
-            default:
-                return super.onOptionsItemSelected(item);
+        if (item.getItemId() == R.id.action_add) {
+            addDeviceBtnCLick();
+            return true;
+        } else if (item.getItemId() == R.id.action_settings_tab) {
+            // فتح تبويب Settings (آخر Fragment في ViewPager)
+            int settingsIndex = pagerAdapter.getCount() - 1;
+            viewPager.setCurrentItem(settingsIndex);
+            collapsingToolbarLayout.setTitle(getString(R.string.tab_settings));
+            return true;
+        } else {
+            return super.onOptionsItemSelected(item);
         }
     }
 
@@ -445,7 +451,8 @@ public class EspMainActivity extends AppCompatActivity {
             pagerAdapter.addFragment(automationFragment);
         }
 
-        // ← 6. Settings / UserProfile (الأخير)
+        // Settings: في ViewPager لكن بدون زر في BottomNav — يُفتح من النقاط الثلاث
+        pagerAdapter.addFragment(new UserProfileFragment());
 
         viewPager.setAdapter(pagerAdapter);
         viewPager.addOnPageChangeListener(pageChangeListener);
