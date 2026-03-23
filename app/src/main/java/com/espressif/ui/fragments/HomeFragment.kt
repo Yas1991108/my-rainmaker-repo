@@ -31,6 +31,7 @@ class HomeFragment : Fragment() {
         private const val TAG       = "HomeFragment"
         private const val MDNS_NAME = "Good8luck"
 
+        @JvmStatic
         fun newInstance(): HomeFragment = HomeFragment()
     }
 
