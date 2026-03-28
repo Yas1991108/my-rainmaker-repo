@@ -180,6 +180,8 @@ public class EspMainActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
+        // إعادة تطبيق الخلفية عند العودة من أي شاشة (مثل PreferencesActivity)
+        applyBackgroundImage();
         EventBus.getDefault().register(this);
         getNodes();
 
