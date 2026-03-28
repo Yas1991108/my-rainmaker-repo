@@ -639,4 +639,15 @@
     <string name="language_english">English</string>
     <string name="language_arabic">عربي</string>
 
+
+    <!-- Background Image — طوافة الوطني -->
+    <string name="bg_image_title">Background Image</string>
+    <string name="bg_image_desc">Choose a custom background image for the app</string>
+    <string name="bg_pick_btn">Choose Image from Gallery</string>
+    <string name="bg_reset_btn">Reset to Default</string>
+    <string name="bg_reset_title">Reset Background</string>
+    <string name="bg_reset_confirm">Are you sure you want to reset to the default background?</string>
+    <string name="bg_reset_done">Background reset to default</string>
+    <string name="bg_changed_done">Background image changed successfully</string>
+
 </resources>
