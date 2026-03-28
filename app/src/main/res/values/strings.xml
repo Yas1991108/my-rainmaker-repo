@@ -633,4 +633,10 @@
     <string name="btn_allow">Allow</string>
     <string name="btn_alexa_deny">Deny</string>
 
+
+    <!-- Language selection — طوافة الوطني -->
+    <string name="language_title">Language</string>
+    <string name="language_english">English</string>
+    <string name="language_arabic">عربي</string>
+
 </resources>
