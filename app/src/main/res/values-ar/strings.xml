@@ -1,1 +1,229 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    المسار: app/src/main/res/values-ar/strings.xml
+    ملف الترجمة العربية — يحتوي على أهم النصوص
+    Android يستخدم هذا الملف تلقائياً عند ضبط اللغة على العربية
+-->
+<resources>
 
+    <string name="app_name">إس بي راين ميكر</string>
+
+    <!-- Tab Titles -->
+    <string name="home_tab_title">الرئيسية</string>
+    <string name="devices_title">الأجهزة</string>
+    <string name="title_activity_schedules">الجداول</string>
+    <string name="title_activity_scenes">المشاهد</string>
+    <string name="title_activity_automations">الأتمتة</string>
+    <string name="tab_settings">الإعدادات</string>
+    <string name="tab_devices">الأجهزة</string>
+    <string name="tab_schedules">الجداول</string>
+    <string name="tab_scenes">المشاهد</string>
+    <string name="tab_automations">الأتمتة</string>
+
+    <!-- Language strings (NEW) -->
+    <string name="language_title">اللغة</string>
+    <string name="language_english">English</string>
+    <string name="language_arabic">عربي</string>
+    <string name="language_restart_msg">سيتم إعادة تشغيل التطبيق لتطبيق اللغة</string>
+
+    <!-- Theme -->
+    <string name="preferences">التفضيلات</string>
+    <string name="theme_selection_title">المظهر</string>
+    <string name="theme_selection_description">اختر مظهر التطبيق المفضل لديك</string>
+    <string name="theme_light">المظهر الفاتح</string>
+    <string name="theme_dark">المظهر الداكن</string>
+    <string name="theme_system">اتبع إعدادات النظام</string>
+
+    <!-- Buttons -->
+    <string name="btn_ok">موافق</string>
+    <string name="btn_cancel">إلغاء</string>
+    <string name="btn_save">حفظ</string>
+    <string name="btn_back">رجوع</string>
+    <string name="btn_done">تم</string>
+    <string name="btn_add">إضافة</string>
+    <string name="btn_remove">إزالة</string>
+    <string name="btn_edit">تعديل</string>
+    <string name="btn_yes">نعم</string>
+    <string name="btn_no">لا</string>
+    <string name="btn_login">تسجيل الدخول</string>
+    <string name="btn_sign_out">تسجيل الخروج</string>
+    <string name="btn_register">تسجيل</string>
+    <string name="btn_confirm">تأكيد</string>
+    <string name="btn_next">التالي</string>
+    <string name="btn_skip">تخطي</string>
+    <string name="btn_update">تحديث</string>
+    <string name="btn_connect">اتصال</string>
+    <string name="btn_add_device">إضافة جهاز</string>
+    <string name="btn_add_schedule">إضافة جدول</string>
+    <string name="btn_add_scene">إضافة مشهد</string>
+    <string name="btn_add_automation">إضافة أتمتة</string>
+    <string name="btn_info">معلومات العقدة</string>
+    <string name="btn_delete_user">حذف الحساب</string>
+    <string name="btn_proceed">متابعة</string>
+    <string name="btn_try_again">حاول مجدداً</string>
+    <string name="btn_send">إرسال</string>
+    <string name="btn_share">مشاركة</string>
+    <string name="btn_accept">قبول</string>
+    <string name="btn_deny">رفض</string>
+    <string name="btn_activate">تفعيل</string>
+    <string name="btn_start">بدء</string>
+
+    <!-- Screen Titles -->
+    <string name="title_activity_esp_device">الجهاز</string>
+    <string name="title_activity_devices">الأجهزة</string>
+    <string name="title_activity_add_device">إضافة جهاز</string>
+    <string name="title_activity_node_details">تفاصيل العقدة</string>
+    <string name="title_activity_settings">الإعدادات</string>
+    <string name="title_activity_about">حول التطبيق</string>
+    <string name="title_activity_preferences">التفضيلات</string>
+    <string name="title_activity_schedule_details">الجدول</string>
+    <string name="title_activity_scene_details">المشهد</string>
+    <string name="title_activity_automation_details">الأتمتة</string>
+    <string name="title_activity_sharing_requests">الإشعارات</string>
+    <string name="title_activity_fw_update">تحديث البرنامج الثابت</string>
+    <string name="title_activity_manage_groups">إدارة المجموعات</string>
+    <string name="title_activity_create_group">إنشاء مجموعة</string>
+    <string name="title_activity_group_detail">تفاصيل المجموعة</string>
+    <string name="title_activity_account_settings">الحساب</string>
+    <string name="title_activity_cmd_resp">الأمر-الاستجابة</string>
+
+    <!-- Status -->
+    <string name="status_offline">غير متصل</string>
+    <string name="status_local">محلي</string>
+    <string name="status_remote">بعيد</string>
+    <string name="offline_at">غير متصل في</string>
+    <string name="local_device_text">متاح على الشبكة المحلية</string>
+    <string name="node_offline">العقدة غير متصلة</string>
+    <string name="text_on">تشغيل</string>
+    <string name="text_off">إيقاف</string>
+
+    <!-- Device -->
+    <string name="no_devices">لا توجد أجهزة مضافة</string>
+    <string name="no_schedules">لا توجد جداول مضافة</string>
+    <string name="no_scenes">لا توجد مشاهد مضافة</string>
+    <string name="no_automations">لا توجد أتمتة مضافة.</string>
+    <string name="no_groups">لا توجد مجموعات</string>
+    <string name="no_sharing_requests">لا توجد إشعارات</string>
+    <string name="device_no_param">لا توجد معاملات للجهاز</string>
+    <string name="add_device_txt">يمكنك إضافة جهاز عن طريق مسح رمز الاستجابة السريعة أو الضغط على + في أعلى الشاشة.</string>
+    <string name="group_all_devices">جميع الأجهزة</string>
+
+    <!-- Messages -->
+    <string name="msg_no_internet">لا يوجد اتصال بالإنترنت</string>
+    <string name="msg_gps_disabled">تم تعطيل GPS</string>
+    <string name="success">نجح!</string>
+    <string name="done">تم</string>
+
+    <!-- Errors -->
+    <string name="error_title">خطأ!</string>
+    <string name="error_unknown">خطأ غير معروف.</string>
+    <string name="error_invalid_email">الرجاء إدخال بريد إلكتروني صحيح</string>
+    <string name="error_password_empty">لا يمكن أن تكون كلمة المرور فارغة</string>
+    <string name="error_username_empty">لا يمكن أن يكون اسم المستخدم فارغاً</string>
+    <string name="error_network">حدث خطأ في الشبكة</string>
+    <string name="error_provisioning_failed">فشل التوفير</string>
+    <string name="error_param_update">فشل التحديث</string>
+    <string name="error_login">فشل تسجيل الدخول</string>
+    <string name="error_device_connection">تحقق من الاتصالات وحاول مرة أخرى.</string>
+
+    <!-- Auth -->
+    <string name="Username">اسم المستخدم</string>
+    <string name="Password">كلمة المرور</string>
+    <string name="hint_username">اسم المستخدم</string>
+    <string name="hint_password">كلمة المرور</string>
+    <string name="hint_confirm_password">تأكيد كلمة المرور</string>
+    <string name="forgot_password">نسيت كلمة المرور؟</string>
+    <string name="tab_login">تسجيل الدخول</string>
+    <string name="tab_sign_up">إنشاء حساب</string>
+    <string name="signup_confirm_msg">أدخل رمز التحقق.</string>
+    <string name="login_with">تسجيل الدخول بـ</string>
+    <string name="use_email_id">أو استخدم بريدك الإلكتروني</string>
+
+    <!-- Account -->
+    <string name="email">البريد الإلكتروني</string>
+    <string name="user_id">معرّف المستخدم (تلقائي)</string>
+    <string name="app_version">إصدار التطبيق</string>
+    <string name="version">الإصدار</string>
+    <string name="privacy_policy">سياسة الخصوصية</string>
+    <string name="terms_of_use">شروط الاستخدام</string>
+    <string name="documentation">الوثائق</string>
+    <string name="alert_factory_reset">سيؤدي إعادة ضبط المصنع إلى مسح جميع البيانات بما في ذلك بيانات اعتماد Wi-Fi من جهازك. هل تريد المتابعة؟</string>
+    <string name="alert_reboot">سيتم إعادة تشغيل الجهاز. هل تريد المتابعة؟</string>
+
+    <!-- Groups -->
+    <string name="title_activity_manage_groups">إدارة المجموعات</string>
+    <string name="title_activity_create_group">إنشاء مجموعة</string>
+    <string name="dialog_title_group_name">أدخل اسم المجموعة</string>
+
+    <!-- Dialog -->
+    <string name="dialog_msg_for_gps">خدمات الموقع معطلة. يرجى تفعيلها للمتابعة</string>
+    <string name="dialog_msg_remove_device">هل تريد إزالة هذا الجهاز؟</string>
+    <string name="dialog_msg_delete_user">سيؤدي هذا إلى حذف حسابك وجميع البيانات المرتبطة به بشكل دائم.\nتصرف بحذر.</string>
+    <string name="dialog_title_logout">تسجيل الخروج</string>
+    <string name="dialog_title_error">خطأ!!</string>
+    <string name="dialog_msg_device_offline">الجهاز غير متصل. يرجى توصيل جهازك بالشبكة والمحاولة مرة أخرى.</string>
+
+    <!-- Provisioning -->
+    <string name="provision">توفير</string>
+    <string name="title_activity_provision">توفير</string>
+    <string name="title_activity_provisioning">جارٍ التوفير</string>
+    <string name="prov_success">تمت إضافة الجهاز بنجاح!!</string>
+    <string name="prov_error">أعد ضبط اللوحة على الإعدادات الافتراضية وحاول مرة أخرى</string>
+    <string name="add_device_success_text">تمت إضافة الجهاز بنجاح!</string>
+    <string name="success_text">تم توفير الجهاز بنجاح!</string>
+    <string name="hint_ssid">اسم الشبكة</string>
+    <string name="hint_pop">رمز الإثبات</string>
+    <string name="enter_device_key">أدخل رمز إثبات الحيازة</string>
+
+    <!-- Schedule/Scene/Automation -->
+    <string name="schedule_once">مرة واحدة</string>
+    <string name="schedule_daily">كل يوم</string>
+    <string name="schedule_weekends">في عطل نهاية الأسبوع</string>
+    <string name="schedule_weekdays">في أيام العمل</string>
+    <string name="msg_schedule_added">تم إنشاء الجدول بنجاح</string>
+    <string name="msg_schedule_updated">تم تحديث الجدول بنجاح</string>
+    <string name="msg_schedule_removed">تم إزالة الجدول بنجاح</string>
+    <string name="msg_scene_added">تم إنشاء المشهد بنجاح</string>
+    <string name="msg_scene_activated">تم تفعيل المشهد بنجاح</string>
+    <string name="success_automation_create">تمت إضافة الأتمتة بنجاح</string>
+    <string name="success_automation_update">تم تحديث الأتمتة بنجاح</string>
+
+    <!-- Misc -->
+    <string name="powered_by_esp">مدعوم بواسطة ESPRESSIF</string>
+    <string name="no_internet_connection">لا يوجد اتصال بالإنترنت</string>
+    <string name="process_take_time">قد يستغرق هذا وقتاً.</string>
+    <string name="not_set">غير محدد</string>
+    <string name="invalid">غير صالح</string>
+    <string name="name">الاسم</string>
+    <string name="on">تشغيل</string>
+    <string name="off">إيقاف</string>
+    <string name="node_id">معرّف العقدة</string>
+    <string name="node_type">النوع</string>
+    <string name="node_fw_version">إصدار البرنامج الثابت</string>
+    <string name="node_timezone">المنطقة الزمنية</string>
+    <string name="supported_services">الخدمات المدعومة</string>
+    <string name="firmware">البرنامج الثابت</string>
+
+    <!-- Notification strings -->
+    <string name="channel_node_connected">العقدة متصلة</string>
+    <string name="channel_node_disconnected">العقدة غير متصلة</string>
+    <string name="channel_node_added">تمت إضافة العقدة</string>
+    <string name="channel_node_removed">تمت إزالة العقدة</string>
+    <string name="channel_node_sharing">مشاركة العقدة</string>
+    <string name="channel_node_alert">رسائل التنبيه</string>
+    <string name="channel_node_automation_trigger">مشغلات الأتمتة</string>
+    <string name="channel_node_group_sharing">مشاركة المجموعة</string>
+    <string name="channel_admin">قناة المسؤول</string>
+    <string name="notify_node_added">تمت إضافة أجهزة جديدة. انقر للعرض.</string>
+    <string name="notify_node_removed">تمت إزالة بعض الأجهزة. انقر للعرض.</string>
+    <string name="notify_node_connected">بعض الأجهزة متصلة الآن. انقر للعرض.</string>
+    <string name="notify_node_disconnected">بعض الأجهزة أصبحت غير متصلة. انقر للعرض.</string>
+
+    <!-- طوافة الوطني -->
+    <string name="home_tab_title">الرئيسية</string>
+    <string name="dialog_title_new_version_available">إصدار جديد متاح!</string>
+    <string name="btn_restart">إعادة تشغيل</string>
+    <string name="btn_allow">السماح</string>
+    <string name="controller_unauthorised">وحدة التحكم (غير مصرح)</string>
+
+</resources>
