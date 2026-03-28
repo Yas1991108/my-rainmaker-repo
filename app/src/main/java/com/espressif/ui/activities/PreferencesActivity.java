@@ -25,6 +25,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import com.espressif.EspApplication;
 import com.espressif.rainmaker.R;
 import com.espressif.rainmaker.databinding.ActivityPreferencesBinding;
+import android.app.AlertDialog;
 import com.espressif.ui.utils.LanguageUtils;
 
 import java.util.Objects;
@@ -70,6 +71,7 @@ public class PreferencesActivity extends AppCompatActivity {
 
         setupThemeSelection();
         setupLanguageSelection();
+        setupBackgroundImage();
     }
 
     // ============================================================
@@ -144,4 +146,56 @@ public class PreferencesActivity extends AppCompatActivity {
             }
         });
     }
+
+    // ============================================================
+    // Background Image — طوافة الوطني
+    // ============================================================
+    private void setupBackgroundImage() {
+        binding.btnPickBackground.setOnClickListener(v -> {
+            // افتح الجاليري لاختيار الصورة
+            if (getActivity() instanceof com.espressif.ui.activities.EspMainActivity) {
+                ((com.espressif.ui.activities.EspMainActivity) getActivity()).openBackgroundImagePicker();
+            } else {
+                // PreferencesActivity تفتح مباشرة — نفتح الجاليري هنا
+                android.content.Intent intent = new android.content.Intent(android.content.Intent.ACTION_OPEN_DOCUMENT);
+                intent.setType("image/*");
+                intent.addCategory(android.content.Intent.CATEGORY_OPENABLE);
+                intent.addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION
+                        | android.content.Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
+                startActivityForResult(intent, 100);
+            }
+        });
+
+        binding.btnResetBackground.setOnClickListener(v -> {
+            new AlertDialog.Builder(this)
+                    .setTitle(R.string.bg_reset_title)
+                    .setMessage(R.string.bg_reset_confirm)
+                    .setPositiveButton(R.string.btn_yes, (dialog, which) -> {
+                        getSharedPreferences(com.espressif.AppConstants.ESP_PREFERENCES, MODE_PRIVATE)
+                                .edit().remove(com.espressif.ui.activities.EspMainActivity.KEY_BACKGROUND_URI).apply();
+                        dialog.dismiss();
+                        android.widget.Toast.makeText(this, R.string.bg_reset_done, android.widget.Toast.LENGTH_SHORT).show();
+                    })
+                    .setNegativeButton(R.string.btn_no, null)
+                    .show();
+        });
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, android.content.Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == 100 && resultCode == RESULT_OK && data != null && data.getData() != null) {
+            android.net.Uri uri = data.getData();
+            try {
+                getContentResolver().takePersistableUriPermission(
+                        uri, android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                getSharedPreferences(com.espressif.AppConstants.ESP_PREFERENCES, MODE_PRIVATE)
+                        .edit().putString(com.espressif.ui.activities.EspMainActivity.KEY_BACKGROUND_URI, uri.toString()).apply();
+                android.widget.Toast.makeText(this, R.string.bg_changed_done, android.widget.Toast.LENGTH_SHORT).show();
+            } catch (Exception e) {
+                android.util.Log.e("PreferencesActivity", "Error: " + e.getMessage());
+            }
+        }
+    }
+
 }
