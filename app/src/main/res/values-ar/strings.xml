@@ -392,4 +392,15 @@
     <string name="day_6">السبت</string>
     <string name="day_7">الأحد</string>
 
+
+    <!-- Background Image — طوافة الوطني -->
+    <string name="bg_image_title">صورة الخلفية</string>
+    <string name="bg_image_desc">اختر صورة خلفية مخصصة للتطبيق</string>
+    <string name="bg_pick_btn">اختر صورة من المعرض</string>
+    <string name="bg_reset_btn">إعادة الضبط للافتراضية</string>
+    <string name="bg_reset_title">إعادة ضبط الخلفية</string>
+    <string name="bg_reset_confirm">هل تريد إعادة الضبط للخلفية الافتراضية؟</string>
+    <string name="bg_reset_done">تم إعادة الضبط للخلفية الافتراضية</string>
+    <string name="bg_changed_done">تم تغيير صورة الخلفية بنجاح</string>
+
 </resources>
