@@ -68,6 +68,7 @@ import com.espressif.ui.fragments.DevicesFragment;
 import com.espressif.ui.activities.AccountActivity;
 import com.espressif.ui.fragments.UserProfileFragment;
 import com.espressif.ui.fragments.HomeFragment;
+import com.espressif.ui.utils.LanguageUtils;
 import com.espressif.ui.fragments.ScenesFragment;
 import com.espressif.ui.fragments.SchedulesFragment;
 import com.espressif.ui.models.Automation;
@@ -113,6 +114,12 @@ public class EspMainActivity extends AppCompatActivity {
     private ApiManager apiManager;
     private EspApplication espApp;
     private ArrayList<UiUpdateListener> updateListenerArrayList = new ArrayList<>();
+
+    // تطبيق اللغة المحفوظة — طوافة الوطني
+    @Override
+    protected void attachBaseContext(android.content.Context newBase) {
+        super.attachBaseContext(LanguageUtils.wrapContext(newBase));
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
