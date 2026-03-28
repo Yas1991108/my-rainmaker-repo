@@ -917,33 +917,63 @@ public class EspMainActivity extends AppCompatActivity {
         startActivityForResult(intent, REQUEST_PICK_BACKGROUND);
     }
 
-    /** تطبيق الخلفية المحفوظة على الـ root view */
+    /** تطبيق الخلفية المحفوظة على الـ root CoordinatorLayout
+     *  ملاحظة: android.R.id.content هو FrameLayout وليس الـ root الفعلي
+     *  يجب استخدام R.id.root_layout الذي أضفناه في activity_esp_main.xml
+     */
     public void applyBackgroundImage() {
         android.content.SharedPreferences prefs = getSharedPreferences(
                 com.espressif.AppConstants.ESP_PREFERENCES, MODE_PRIVATE);
         String uriStr = prefs.getString(KEY_BACKGROUND_URI, null);
 
-        ViewGroup rootView = (ViewGroup) findViewById(android.R.id.content);
-        if (rootView == null) return;
+        // الـ root CoordinatorLayout الذي عليه android:background في XML
+        android.view.View rootView = findViewById(R.id.root_layout);
+        if (rootView == null) {
+            Log.w(TAG, "root_layout not found");
+            return;
+        }
 
         if (uriStr != null) {
             try {
                 Uri uri = Uri.parse(uriStr);
-                getContentResolver().takePersistableUriPermission(
-                        uri, Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                // تأكد من صلاحية الوصول
+                try {
+                    getContentResolver().takePersistableUriPermission(
+                            uri, Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                } catch (Exception ignored) {}
+
                 java.io.InputStream is = getContentResolver().openInputStream(uri);
+                if (is == null) {
+                    Log.e(TAG, "Cannot open image stream");
+                    rootView.setBackgroundResource(R.drawable.bg_home_screen);
+                    return;
+                }
                 Bitmap bmp = BitmapFactory.decodeStream(is);
-                if (is != null) is.close();
+                is.close();
+
                 if (bmp != null) {
+                    // ضغط الصورة إذا كانت كبيرة جداً لتجنب OutOfMemory
+                    int maxSize = 1920;
+                    if (bmp.getWidth() > maxSize || bmp.getHeight() > maxSize) {
+                        float scale = Math.min(
+                                (float) maxSize / bmp.getWidth(),
+                                (float) maxSize / bmp.getHeight());
+                        int newW = (int)(bmp.getWidth()  * scale);
+                        int newH = (int)(bmp.getHeight() * scale);
+                        bmp = Bitmap.createScaledBitmap(bmp, newW, newH, true);
+                    }
                     rootView.setBackground(new BitmapDrawable(getResources(), bmp));
+                    Log.d(TAG, "Background image applied successfully");
+                } else {
+                    Log.e(TAG, "Failed to decode bitmap");
+                    rootView.setBackgroundResource(R.drawable.bg_home_screen);
                 }
             } catch (Exception e) {
                 Log.e(TAG, "Failed to load background image: " + e.getMessage());
-                // استخدم الخلفية الافتراضية
                 rootView.setBackgroundResource(R.drawable.bg_home_screen);
             }
         } else {
-            // الخلفية الافتراضية
+            // لا توجد صورة مخصصة — استخدم الخلفية الافتراضية
             rootView.setBackgroundResource(R.drawable.bg_home_screen);
         }
     }
