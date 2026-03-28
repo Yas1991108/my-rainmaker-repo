@@ -14,10 +14,9 @@
 
 package com.espressif.ui.activities;
 
+import android.content.Context;
 import android.os.Bundle;
-import android.util.Log;
 import android.view.View;
-import android.widget.RadioButton;
 import android.widget.RadioGroup;
 
 import androidx.annotation.Nullable;
@@ -26,6 +25,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import com.espressif.EspApplication;
 import com.espressif.rainmaker.R;
 import com.espressif.rainmaker.databinding.ActivityPreferencesBinding;
+import com.espressif.ui.utils.LanguageUtils;
 
 import java.util.Objects;
 
@@ -34,14 +34,22 @@ public class PreferencesActivity extends AppCompatActivity {
     private ActivityPreferencesBinding binding;
     private EspApplication espApp;
 
+    // ============================================================
+    // تطبيق اللغة عند فتح الشاشة
+    // ============================================================
+    @Override
+    protected void attachBaseContext(Context newBase) {
+        super.attachBaseContext(LanguageUtils.wrapContext(newBase));
+    }
+
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        
+
         binding = ActivityPreferencesBinding.inflate(getLayoutInflater());
         View view = binding.getRoot();
         setContentView(view);
-        
+
         espApp = (EspApplication) getApplicationContext();
         initViews();
     }
@@ -61,8 +69,12 @@ public class PreferencesActivity extends AppCompatActivity {
         });
 
         setupThemeSelection();
+        setupLanguageSelection();
     }
 
+    // ============================================================
+    // Theme Section (الكود الأصلي — لم يتغير)
+    // ============================================================
     private void setupThemeSelection() {
 
         String currentTheme = espApp.getThemePreference();
@@ -85,7 +97,7 @@ public class PreferencesActivity extends AppCompatActivity {
             public void onCheckedChanged(RadioGroup group, int checkedId) {
 
                 String selectedTheme = EspApplication.THEME_SYSTEM;
-                
+
                 if (checkedId == R.id.rb_light_theme) {
                     selectedTheme = EspApplication.THEME_LIGHT;
                 } else if (checkedId == R.id.rb_dark_theme) {
@@ -93,9 +105,42 @@ public class PreferencesActivity extends AppCompatActivity {
                 } else if (checkedId == R.id.rb_system_theme) {
                     selectedTheme = EspApplication.THEME_SYSTEM;
                 }
-                
+
                 espApp.setThemePreference(selectedTheme);
                 recreate();
+            }
+        });
+    }
+
+    // ============================================================
+    // Language Section (جديد — طوافة الوطني)
+    // ============================================================
+    private void setupLanguageSelection() {
+
+        String currentLanguage = LanguageUtils.getSavedLanguage(this);
+
+        // ضبط الاختيار الحالي
+        if (LanguageUtils.LANGUAGE_ARABIC.equals(currentLanguage)) {
+            binding.rbArabic.setChecked(true);
+        } else {
+            binding.rbEnglish.setChecked(true);
+        }
+
+        binding.rgLanguageSelection.setOnCheckedChangeListener(new RadioGroup.OnCheckedChangeListener() {
+            @Override
+            public void onCheckedChanged(RadioGroup group, int checkedId) {
+
+                String selectedLanguage;
+                if (checkedId == R.id.rb_arabic) {
+                    selectedLanguage = LanguageUtils.LANGUAGE_ARABIC;
+                } else {
+                    selectedLanguage = LanguageUtils.LANGUAGE_ENGLISH;
+                }
+
+                // احفظ وأعد تشغيل فقط إذا تغيرت اللغة
+                if (!selectedLanguage.equals(LanguageUtils.getSavedLanguage(PreferencesActivity.this))) {
+                    LanguageUtils.setLanguageAndRestart(PreferencesActivity.this, selectedLanguage);
+                }
             }
         });
     }
