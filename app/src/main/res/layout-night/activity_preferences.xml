@@ -1,4 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+    المسار: app/src/main/res/layout-night/activity_preferences.xml
+    نسخة الوضع الداكن — يجب أن تحتوي على نفس العناصر تماماً
+-->
 <androidx.coordinatorlayout.widget.CoordinatorLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
@@ -23,7 +27,7 @@
             android:orientation="vertical"
             android:padding="@dimen/margin_16">
 
-            <!-- Theme Section -->
+            <!-- ===== Theme Section (أصلي) ===== -->
             <androidx.cardview.widget.CardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -86,6 +90,61 @@
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:text="@string/theme_system"
+                            android:textColor="@color/color_text"
+                            android:textSize="16sp"
+                            android:padding="@dimen/margin_12" />
+
+                    </RadioGroup>
+
+                </LinearLayout>
+
+            </androidx.cardview.widget.CardView>
+
+            <!-- ===== Language Section (جديد — طوافة الوطني) ===== -->
+            <androidx.cardview.widget.CardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="@dimen/margin_16"
+                app:cardBackgroundColor="@color/color_card_background"
+                app:cardCornerRadius="8dp"
+                app:cardElevation="4dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="@dimen/margin_16">
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/language_title"
+                        android:textColor="@color/colorPrimary"
+                        android:textSize="18sp"
+                        android:textStyle="bold"
+                        android:layout_marginBottom="@dimen/margin_16" />
+
+                    <RadioGroup
+                        android:id="@+id/rg_language_selection"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical">
+
+                        <RadioButton
+                            android:id="@+id/rb_english"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="@string/language_english"
+                            android:textColor="@color/color_text"
+                            android:textSize="16sp"
+                            android:padding="@dimen/margin_12"
+                            android:layout_marginBottom="@dimen/margin_8" />
+
+                        <RadioButton
+                            android:id="@+id/rb_arabic"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="@string/language_arabic"
                             android:textColor="@color/color_text"
                             android:textSize="16sp"
                             android:padding="@dimen/margin_12" />
