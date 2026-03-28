@@ -20,7 +20,13 @@ import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.location.LocationManager;
+import android.content.ContentResolver;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.graphics.drawable.BitmapDrawable;
 import android.net.Uri;
+import android.view.ViewGroup;
+import android.widget.ImageView;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Vibrator;
@@ -95,6 +101,8 @@ public class EspMainActivity extends AppCompatActivity {
 
     private static final int REQUEST_LOCATION                 = 1;
     private static final int REQUEST_NOTIFICATION_PERMISSION  = 2;
+    private static final int REQUEST_PICK_BACKGROUND              = 3;
+    public  static final String KEY_BACKGROUND_URI                = "bg_image_uri";
     private static final int REQUEST_APP_UPDATE               = 500;
 
     private CollapsingToolbarLayout collapsingToolbarLayout;
@@ -102,7 +110,6 @@ public class EspMainActivity extends AppCompatActivity {
     private BottomNavigationView bottomNavigationView;
     private ViewPager viewPager;
 
-    // ===== Fragments =====
     private Fragment homeFragment;                              // ← إضافة جديدة
     private Fragment deviceFragment, scheduleFragment, sceneFragment, automationFragment;
 
@@ -115,7 +122,7 @@ public class EspMainActivity extends AppCompatActivity {
     private EspApplication espApp;
     private ArrayList<UiUpdateListener> updateListenerArrayList = new ArrayList<>();
 
-    // تطبيق اللغة المحفوظة — طوافة الوطني
+    // تطبيق اللغة المحفوظة
     @Override
     protected void attachBaseContext(android.content.Context newBase) {
         super.attachBaseContext(LanguageUtils.wrapContext(newBase));
@@ -126,6 +133,8 @@ public class EspMainActivity extends AppCompatActivity {
 
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_esp_main);
+        // تطبيق خلفية مخصصة إذا اختار المستخدم واحدة
+        applyBackgroundImage();
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             if (ActivityCompat.checkSelfPermission(EspMainActivity.this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
@@ -229,9 +238,7 @@ public class EspMainActivity extends AppCompatActivity {
         }
     }
 
-    // ============================================================
     // addDeviceBtnCLick — معالجة زر + حسب التبويب النشط
-    // ============================================================
     private void addDeviceBtnCLick() {
 
         Vibrator vib = (Vibrator) getSystemService(VIBRATOR_SERVICE);
@@ -315,12 +322,22 @@ public class EspMainActivity extends AppCompatActivity {
             case AppUpdateHelper.REQUEST_APP_UPDATE:
                 AppUpdateHelper.INSTANCE.handleUpdateResult(this, resultCode);
                 break;
+            case REQUEST_PICK_BACKGROUND:
+                if (resultCode == RESULT_OK && data != null && data.getData() != null) {
+                    Uri uri = data.getData();
+                    // احفظ URI بشكل دائم
+                    getContentResolver().takePersistableUriPermission(
+                            uri, Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                    android.content.SharedPreferences prefs = getSharedPreferences(
+                            com.espressif.AppConstants.ESP_PREFERENCES, MODE_PRIVATE);
+                    prefs.edit().putString(KEY_BACKGROUND_URI, uri.toString()).apply();
+                    applyBackgroundImage();
+                }
+                break;
         }
     }
 
-    // ============================================================
     // navigationItemSelectedListener
-    // ============================================================
     BottomNavigationView.OnNavigationItemSelectedListener navigationItemSelectedListener =
             new BottomNavigationView.OnNavigationItemSelectedListener() {
 
@@ -348,9 +365,7 @@ public class EspMainActivity extends AppCompatActivity {
         getNodes();
     }
 
-    // ============================================================
     // updateActionBar — إخفاء/إظهار زر + حسب التبويب
-    // ============================================================
     public void updateActionBar() {
 
         if (menuAdd != null) {
@@ -381,9 +396,7 @@ public class EspMainActivity extends AppCompatActivity {
         }
     }
 
-    // ============================================================
     // initViews — التهيئة مع تغيير الافتراضي إلى Home
-    // ============================================================
     private void initViews(boolean shouldLoadAutomation) {
 
         collapsingToolbarLayout = findViewById(R.id.collapsing_toolbar_layout);
@@ -425,10 +438,8 @@ public class EspMainActivity extends AppCompatActivity {
         }
     }
 
-    // ============================================================
     // setupViewPager — ترتيب Fragments الجديد
     // Home أولاً، ثم بقية التبويبات
-    // ============================================================
     private void setupViewPager() {
 
         pagerAdapter = new HomeScreenPagerAdapter(getSupportFragmentManager(), this);
@@ -469,10 +480,8 @@ public class EspMainActivity extends AppCompatActivity {
         viewPager.setOffscreenPageLimit(pagerAdapter.getCount());
     }
 
-    // ============================================================
     // navigateToAutomation — الانتقال لتبويب Automation بأمان
     // يعمل بغض النظر عن الترتيب
-    // ============================================================
     private void navigateToAutomation() {
         String automationTitle = getString(R.string.title_activity_automations);
         int pageIndex = pagerAdapter.getItemPosition(automationTitle);
@@ -489,18 +498,14 @@ public class EspMainActivity extends AppCompatActivity {
         }
     }
 
-    // ============================================================
     // openSettingsTab — يُستدعى من DevicesFragment
-    // ============================================================
     public void openSettingsTab() {
         int settingsIndex = pagerAdapter.getCount() - 1;
         viewPager.setCurrentItem(settingsIndex);
         collapsingToolbarLayout.setTitle(getString(R.string.tab_settings));
     }
 
-    // ============================================================
     // pageChangeListener — مزامنة BottomNav مع ViewPager
-    // ============================================================
     ViewPager.OnPageChangeListener pageChangeListener = new ViewPager.OnPageChangeListener() {
 
         @Override
@@ -535,9 +540,7 @@ public class EspMainActivity extends AppCompatActivity {
         public void onPageScrollStateChanged(int state) {}
     };
 
-    // ============================================================
     // updateUi
-    // ============================================================
     private void updateUi() {
 
         switch (espApp.getAppState()) {
@@ -895,6 +898,60 @@ public class EspMainActivity extends AppCompatActivity {
         try { network_enabled = lm.isProviderEnabled(LocationManager.NETWORK_PROVIDER); } catch (Exception ex) {}
         Log.d(TAG, "GPS Enabled : " + gps_enabled + " , Network Enabled : " + network_enabled);
         return gps_enabled || network_enabled;
+    }
+
+
+    // ============================================================
+    // Background Image — طوافة الوطني
+    // ============================================================
+
+    /** فتح الجاليري لاختيار صورة خلفية */
+    public void openBackgroundImagePicker() {
+        Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+        intent.setType("image/*");
+        intent.addCategory(Intent.CATEGORY_OPENABLE);
+        intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION
+                | Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
+        startActivityForResult(intent, REQUEST_PICK_BACKGROUND);
+    }
+
+    /** تطبيق الخلفية المحفوظة على الـ root view */
+    public void applyBackgroundImage() {
+        android.content.SharedPreferences prefs = getSharedPreferences(
+                com.espressif.AppConstants.ESP_PREFERENCES, MODE_PRIVATE);
+        String uriStr = prefs.getString(KEY_BACKGROUND_URI, null);
+
+        ViewGroup rootView = (ViewGroup) findViewById(android.R.id.content);
+        if (rootView == null) return;
+
+        if (uriStr != null) {
+            try {
+                Uri uri = Uri.parse(uriStr);
+                getContentResolver().takePersistableUriPermission(
+                        uri, Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                java.io.InputStream is = getContentResolver().openInputStream(uri);
+                Bitmap bmp = BitmapFactory.decodeStream(is);
+                if (is != null) is.close();
+                if (bmp != null) {
+                    rootView.setBackground(new BitmapDrawable(getResources(), bmp));
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "Failed to load background image: " + e.getMessage());
+                // استخدم الخلفية الافتراضية
+                rootView.setBackgroundResource(R.drawable.bg_home_screen);
+            }
+        } else {
+            // الخلفية الافتراضية
+            rootView.setBackgroundResource(R.drawable.bg_home_screen);
+        }
+    }
+
+    /** حذف الخلفية المخصصة والعودة للافتراضية */
+    public void resetBackgroundImage() {
+        android.content.SharedPreferences prefs = getSharedPreferences(
+                com.espressif.AppConstants.ESP_PREFERENCES, MODE_PRIVATE);
+        prefs.edit().remove(KEY_BACKGROUND_URI).apply();
+        applyBackgroundImage();
     }
 
     public interface UiUpdateListener {
