@@ -152,18 +152,13 @@ public class PreferencesActivity extends AppCompatActivity {
     // ============================================================
     private void setupBackgroundImage() {
         binding.btnPickBackground.setOnClickListener(v -> {
-            // افتح الجاليري لاختيار الصورة
-            if (getActivity() instanceof com.espressif.ui.activities.EspMainActivity) {
-                ((com.espressif.ui.activities.EspMainActivity) getActivity()).openBackgroundImagePicker();
-            } else {
-                // PreferencesActivity تفتح مباشرة — نفتح الجاليري هنا
-                android.content.Intent intent = new android.content.Intent(android.content.Intent.ACTION_OPEN_DOCUMENT);
-                intent.setType("image/*");
-                intent.addCategory(android.content.Intent.CATEGORY_OPENABLE);
-                intent.addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION
-                        | android.content.Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
-                startActivityForResult(intent, 100);
-            }
+            // PreferencesActivity هي Activity — نفتح الجاليري مباشرة
+            android.content.Intent intent = new android.content.Intent(android.content.Intent.ACTION_OPEN_DOCUMENT);
+            intent.setType("image/*");
+            intent.addCategory(android.content.Intent.CATEGORY_OPENABLE);
+            intent.addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION
+                    | android.content.Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
+            startActivityForResult(intent, 100);
         });
 
         binding.btnResetBackground.setOnClickListener(v -> {
