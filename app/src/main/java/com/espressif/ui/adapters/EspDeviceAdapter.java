@@ -181,15 +181,12 @@ public class EspDeviceAdapter extends RecyclerView.Adapter<EspDeviceAdapter.Devi
                                         OnOffClusterHelper espClusterHelper = new OnOffClusterHelper(espApp.chipClientMap.get(finalMatterNodeId));
                                         espClusterHelper.setOnOffDeviceStateOnOffClusterAsync(deviceId, !status, AppConstants.ENDPOINT_1);
                                         param.setSwitchStatus(!status);
-                                        
-                                        // تشغيل صوت التبديل (Matter) مع تصحيح المنطق
-                                        SoundManager smMatter = SoundManager.getInstance(v.getContext());
-                                        if (status) smMatter.playToggleOff(); else smMatter.playToggleOn();
+                                // تشغيل صوت التبديل
+                                SoundManager sm = SoundManager.getInstance(v.getContext());
+                                if (!status) sm.playToggleOff(); else sm.playToggleOn();
                                         break;
 
                                     case AppConstants.NODE_STATUS_REMOTELY_CONTROLLABLE:
-                                        // تشغيل صوت للنقر عن بعد
-                                        SoundManager.getInstance(v.getContext()).playClick();
                                         RemoteControlApiHelper apiHelper = new RemoteControlApiHelper(espApp);
 
                                         for (Map.Entry<String, HashMap<String, String>> entry : espApp.controllerDevices.entrySet()) {
@@ -255,10 +252,6 @@ public class EspDeviceAdapter extends RecyclerView.Adapter<EspDeviceAdapter.Devi
                                         jsonParam.addProperty(param.getName(), !status);
                                         body.add(device.getDeviceName(), jsonParam);
 
-                                        // تشغيل صوت التبديل لوضع السحابة (Default)
-                                        SoundManager smDefault = SoundManager.getInstance(v.getContext());
-                                        if (status) smDefault.playToggleOff(); else smDefault.playToggleOn();
-
                                         networkApiManager.updateParamValue(device.getNodeId(), body, new ApiResponseListener() {
 
                                             @Override
@@ -293,11 +286,12 @@ public class EspDeviceAdapter extends RecyclerView.Adapter<EspDeviceAdapter.Devi
                         deviceVh.btnTrigger.setEnabled(true);
                         deviceVh.btnTrigger.setClickable(true);
                         deviceVh.btnTrigger.enableLongHold(true);
+                        // علّم هذا الزر كعنصر تحكم — له صوت خاص به
+                        deviceVh.btnTrigger.setTag("device_control");
                         deviceVh.btnTrigger.setOnButtonClickListener(new TapHoldUpButton.OnButtonClickListener() {
 
                             @Override
                             public void onLongHoldStart(View v) {
-                                SoundManager.getInstance(v.getContext()).playClick();
                             }
 
                             @Override
@@ -328,7 +322,6 @@ public class EspDeviceAdapter extends RecyclerView.Adapter<EspDeviceAdapter.Devi
 
                             @Override
                             public void onClick(View v) {
-                                SoundManager.getInstance(v.getContext()).playClick();
                                 JsonObject jsonParam = new JsonObject();
                                 JsonObject body = new JsonObject();
 
@@ -383,9 +376,6 @@ public class EspDeviceAdapter extends RecyclerView.Adapter<EspDeviceAdapter.Devi
 
                             @Override
                             public void onClick(View v) {
-                                
-                                // تشغيل صوت عند الضغط على أجهزة الـ Boolean
-                                SoundManager.getInstance(v.getContext()).playClick();
 
                                 String value = param.getLabelValue();
                                 boolean finalIsOn = false;
@@ -770,3 +760,6 @@ public class EspDeviceAdapter extends RecyclerView.Adapter<EspDeviceAdapter.Devi
         }
     }
 }
+
+
+
