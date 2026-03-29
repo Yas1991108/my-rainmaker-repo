@@ -74,6 +74,7 @@ import com.espressif.ui.fragments.DevicesFragment;
 import com.espressif.ui.activities.AccountActivity;
 import com.espressif.ui.fragments.UserProfileFragment;
 import com.espressif.ui.fragments.HomeFragment;
+import com.espressif.ui.utils.SoundManager;
 import com.espressif.ui.utils.LanguageUtils;
 import com.espressif.ui.fragments.ScenesFragment;
 import com.espressif.ui.fragments.SchedulesFragment;
@@ -345,6 +346,7 @@ public class EspMainActivity extends AppCompatActivity {
 
         @Override
         public boolean onNavigationItemSelected(@NonNull MenuItem menuItem) {
+            SoundManager.getInstance(EspMainActivity.this).playClick();
             String title    = menuItem.getTitle().toString();
             collapsingToolbarLayout.setTitle(title);
             int pageIndex   = pagerAdapter.getItemPosition(title);
@@ -986,7 +988,60 @@ public class EspMainActivity extends AppCompatActivity {
         applyBackgroundImage();
     }
 
+    // ============================================================
+    // تشغيل صوت النقر على جميع العناصر القابلة للنقر في التطبيق
+    // يعمل على: الشريط السفلي، القوائم، الأزرار، العناصر في أي شاشة
+    // ============================================================
+    @Override
+    public boolean dispatchTouchEvent(android.view.MotionEvent ev) {
+        // نشغل الصوت عند رفع الإصبع (ACTION_UP) وليس عند الضغط
+        if (ev.getAction() == android.view.MotionEvent.ACTION_UP) {
+            android.view.View touchedView = findViewAtCoordinates(
+                    getWindow().getDecorView(),
+                    (int) ev.getRawX(),
+                    (int) ev.getRawY()
+            );
+            if (touchedView != null && touchedView.isClickable() && touchedView.isEnabled()) {
+                // لا تشغل صوت النقر العام على عناصر التحكم بالأجهزة
+                // (لها أصوات خاصة تشغيل/إيقاف في EspDeviceAdapter)
+                String tag = touchedView.getTag() != null ? touchedView.getTag().toString() : "";
+                if (!tag.equals("device_control")) {
+                    SoundManager.getInstance(this).playClick();
+                }
+            }
+        }
+        return super.dispatchTouchEvent(ev);
+    }
+
+    /** يجد الـ View عند إحداثيات معينة بشكل تكراري */
+    private android.view.View findViewAtCoordinates(android.view.View root, int x, int y) {
+        if (root instanceof android.view.ViewGroup) {
+            android.view.ViewGroup group = (android.view.ViewGroup) root;
+            for (int i = group.getChildCount() - 1; i >= 0; i--) {
+                android.view.View child = group.getChildAt(i);
+                if (child.getVisibility() != android.view.View.VISIBLE) continue;
+
+                int[] location = new int[2];
+                child.getLocationOnScreen(location);
+                android.graphics.Rect rect = new android.graphics.Rect(
+                        location[0], location[1],
+                        location[0] + child.getWidth(),
+                        location[1] + child.getHeight()
+                );
+                if (rect.contains(x, y)) {
+                    android.view.View deeper = findViewAtCoordinates(child, x, y);
+                    if (deeper != null && deeper.isClickable()) return deeper;
+                    if (child.isClickable()) return child;
+                }
+            }
+        }
+        return root.isClickable() ? root : null;
+    }
+
     public interface UiUpdateListener {
         void updateUi();
     }
 }
+
+
+
