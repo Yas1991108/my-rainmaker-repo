@@ -27,6 +27,7 @@ import com.espressif.rainmaker.R;
 import com.espressif.rainmaker.databinding.ActivityPreferencesBinding;
 import android.app.AlertDialog;
 import com.espressif.ui.utils.LanguageUtils;
+import com.espressif.ui.utils.SoundManager;
 
 import java.util.Objects;
 
@@ -72,6 +73,7 @@ public class PreferencesActivity extends AppCompatActivity {
         setupThemeSelection();
         setupLanguageSelection();
         setupBackgroundImage();
+        setupSoundSettings();
     }
 
     // ============================================================
@@ -190,6 +192,78 @@ public class PreferencesActivity extends AppCompatActivity {
             } catch (Exception e) {
                 android.util.Log.e("PreferencesActivity", "Error: " + e.getMessage());
             }
+        }
+    }
+
+
+    // ============================================================
+    // Sound Settings — طوافة الوطني
+    // ============================================================
+    private void setupSoundSettings() {
+        SoundManager sm = SoundManager.getInstance(this);
+
+        // ===== تفعيل/كتم الصوت =====
+        binding.switchSoundEnabled.setChecked(sm.isSoundEnabled());
+        binding.switchSoundEnabled.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            sm.setSoundEnabled(isChecked);
+            // تحديث حالة بقية العناصر
+            updateSoundControlsState(isChecked);
+            if (isChecked) sm.playClick();
+        });
+
+        // ===== مستوى الصوت =====
+        binding.seekbarVolume.setMax(100);
+        binding.seekbarVolume.setProgress(sm.getVolumePercent());
+        binding.tvVolumeValue.setText(sm.getVolumePercent() + "%");
+        binding.seekbarVolume.setOnSeekBarChangeListener(new android.widget.SeekBar.OnSeekBarChangeListener() {
+            @Override
+            public void onProgressChanged(android.widget.SeekBar seekBar, int progress, boolean fromUser) {
+                binding.tvVolumeValue.setText(progress + "%");
+                sm.setVolumePercent(progress);
+            }
+            @Override public void onStartTrackingTouch(android.widget.SeekBar seekBar) {}
+            @Override public void onStopTrackingTouch(android.widget.SeekBar seekBar) {
+                // تشغيل صوت تجريبي عند رفع الإصبع
+                sm.playClick();
+            }
+        });
+
+        // ===== اختيار مجموعة الأصوات =====
+        String currentTheme = sm.getSavedTheme();
+        switch (currentTheme) {
+            case SoundManager.THEME_CLASSIC:    binding.rbSoundClassic.setChecked(true);   break;
+            case SoundManager.THEME_SMART_HOME: binding.rbSoundSmart.setChecked(true);     break;
+            case SoundManager.THEME_SILENT:     binding.rbSoundSilent.setChecked(true);    break;
+            default:                            binding.rbSoundModern.setChecked(true);    break;
+        }
+
+        binding.rgSoundTheme.setOnCheckedChangeListener((group, checkedId) -> {
+            String selected;
+            if      (checkedId == R.id.rb_sound_classic)   selected = SoundManager.THEME_CLASSIC;
+            else if (checkedId == R.id.rb_sound_smart)     selected = SoundManager.THEME_SMART_HOME;
+            else if (checkedId == R.id.rb_sound_silent)    selected = SoundManager.THEME_SILENT;
+            else                                           selected = SoundManager.THEME_MODERN;
+
+            sm.setTheme(selected);
+            // تشغيل صوت تجريبي مباشرة بعد التغيير
+            if (!SoundManager.THEME_SILENT.equals(selected)) {
+                new android.os.Handler().postDelayed(sm::playClick, 300);
+            }
+        });
+
+        // ===== تحديث حالة العناصر حسب التفعيل =====
+        updateSoundControlsState(sm.isSoundEnabled());
+    }
+
+    private void updateSoundControlsState(boolean enabled) {
+        float alpha = enabled ? 1f : 0.4f;
+        binding.seekbarVolume.setEnabled(enabled);
+        binding.seekbarVolume.setAlpha(alpha);
+        binding.tvVolumeValue.setAlpha(alpha);
+        binding.rgSoundTheme.setEnabled(enabled);
+        for (int i = 0; i < binding.rgSoundTheme.getChildCount(); i++) {
+            binding.rgSoundTheme.getChildAt(i).setEnabled(enabled);
+            binding.rgSoundTheme.getChildAt(i).setAlpha(alpha);
         }
     }
 
