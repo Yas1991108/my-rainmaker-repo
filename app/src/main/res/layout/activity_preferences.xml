@@ -312,7 +312,7 @@
                             android:textColor="@color/color_text"
                             android:textSize="15sp"
                             android:padding="@dimen/margin_8"
-                            android:layout_marginBottom="@dimen/margin_4" />
+                            android:layout_marginBottom="@dimen/margin_8" />
 
                         <RadioButton
                             android:id="@+id/rb_sound_classic"
@@ -322,7 +322,7 @@
                             android:textColor="@color/color_text"
                             android:textSize="15sp"
                             android:padding="@dimen/margin_8"
-                            android:layout_marginBottom="@dimen/margin_4" />
+                            android:layout_marginBottom="@dimen/margin_8" />
 
                         <RadioButton
                             android:id="@+id/rb_sound_smart"
@@ -332,7 +332,7 @@
                             android:textColor="@color/color_text"
                             android:textSize="15sp"
                             android:padding="@dimen/margin_8"
-                            android:layout_marginBottom="@dimen/margin_4" />
+                            android:layout_marginBottom="@dimen/margin_8" />
 
                         <RadioButton
                             android:id="@+id/rb_sound_silent"
