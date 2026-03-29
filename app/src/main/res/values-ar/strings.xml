@@ -403,4 +403,19 @@
     <string name="bg_reset_done">تم إعادة الضبط للخلفية الافتراضية</string>
     <string name="bg_changed_done">تم تغيير صورة الخلفية بنجاح</string>
 
+
+    <!-- Sound Settings — طوافة الوطني -->
+    <string name="sound_title">المؤثرات الصوتية</string>
+    <string name="sound_enable">تفعيل المؤثرات الصوتية</string>
+    <string name="sound_volume">مستوى الصوت</string>
+    <string name="sound_theme">مجموعة الأصوات</string>
+    <string name="sound_theme_modern">حديثة (رقمية)</string>
+    <string name="sound_theme_classic">كلاسيكية (ميكانيكية)</string>
+    <string name="sound_theme_smart">المنزل الذكي</string>
+    <string name="sound_theme_silent">صامت</string>
+    <string name="sound_theme_modern_desc">نغمات رقمية نظيفة للأزرار والمفاتيح</string>
+    <string name="sound_theme_classic_desc">أصوات ريلاي ومفاتيح واقعية</string>
+    <string name="sound_theme_smart_desc">أصوات إشعارات خفيفة</string>
+    <string name="sound_theme_silent_desc">بدون أصوات</string>
+
 </resources>
