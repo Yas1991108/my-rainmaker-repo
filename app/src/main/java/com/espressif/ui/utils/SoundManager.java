@@ -15,7 +15,6 @@ import android.media.SoundPool;
 import android.util.Log;
 
 import com.espressif.AppConstants;
-import com.espressif.rainmaker.R;
 
 public class SoundManager {
 
@@ -96,51 +95,51 @@ public class SoundManager {
 
     private void loadSoundsForTheme(String theme) {
         if (soundPool == null) return;
-        isLoaded = false;
+        isLoaded = true; // نعتبرها محملة — الملفات المفقودة ستُعطي 0
 
         // ===========================================================
-        // خريطة الأصوات حسب المجموعة
-        // المستخدم يضع ملفات الصوت في: app/src/main/res/raw/
+        // تحميل الأصوات بشكل ديناميكي حسب اسم الملف
+        // هذا يمنع خطأ التجميع إذا لم تكن الملفات موجودة بعد
         // ===========================================================
+        String prefix;
         switch (theme) {
-            case THEME_CLASSIC:
-                // أصوات ميكانيكية — مفاتيح حقيقية وريلاي
-                soundIds[SOUND_TOGGLE_ON]    = safeLoad(R.raw.classic_toggle_on);
-                soundIds[SOUND_TOGGLE_OFF]   = safeLoad(R.raw.classic_toggle_off);
-                soundIds[SOUND_BUTTON_CLICK] = safeLoad(R.raw.classic_click);
-                soundIds[SOUND_SUCCESS]      = safeLoad(R.raw.classic_success);
-                soundIds[SOUND_ERROR]        = safeLoad(R.raw.classic_error);
-                soundIds[SOUND_NOTIFICATION] = safeLoad(R.raw.classic_notification);
-                break;
+            case THEME_CLASSIC:    prefix = "classic"; break;
+            case THEME_SMART_HOME: prefix = "smart";   break;
+            default:               prefix = "modern";  break;
+        }
 
-            case THEME_SMART_HOME:
-                // أصوات Smart Home — نغمات قصيرة هادئة
-                soundIds[SOUND_TOGGLE_ON]    = safeLoad(R.raw.smart_toggle_on);
-                soundIds[SOUND_TOGGLE_OFF]   = safeLoad(R.raw.smart_toggle_off);
-                soundIds[SOUND_BUTTON_CLICK] = safeLoad(R.raw.smart_click);
-                soundIds[SOUND_SUCCESS]      = safeLoad(R.raw.smart_success);
-                soundIds[SOUND_ERROR]        = safeLoad(R.raw.smart_error);
-                soundIds[SOUND_NOTIFICATION] = safeLoad(R.raw.smart_notification);
-                break;
+        soundIds[SOUND_TOGGLE_ON]    = safeLoadByName(prefix + "_toggle_on");
+        soundIds[SOUND_TOGGLE_OFF]   = safeLoadByName(prefix + "_toggle_off");
+        soundIds[SOUND_BUTTON_CLICK] = safeLoadByName(prefix + "_click");
+        soundIds[SOUND_SUCCESS]      = safeLoadByName(prefix + "_success");
+        soundIds[SOUND_ERROR]        = safeLoadByName(prefix + "_error");
+        soundIds[SOUND_NOTIFICATION] = safeLoadByName(prefix + "_notification");
+    }
 
-            case THEME_MODERN:
-            default:
-                // أصوات رقمية حديثة
-                soundIds[SOUND_TOGGLE_ON]    = safeLoad(R.raw.modern_toggle_on);
-                soundIds[SOUND_TOGGLE_OFF]   = safeLoad(R.raw.modern_toggle_off);
-                soundIds[SOUND_BUTTON_CLICK] = safeLoad(R.raw.modern_click);
-                soundIds[SOUND_SUCCESS]      = safeLoad(R.raw.modern_success);
-                soundIds[SOUND_ERROR]        = safeLoad(R.raw.modern_error);
-                soundIds[SOUND_NOTIFICATION] = safeLoad(R.raw.modern_notification);
-                break;
+    /**
+     * تحميل صوت باسمه النصي — يعمل حتى لو الملف غير موجود
+     * لا يتسبب في خطأ تجميع لأنه يستخدم getIdentifier() وقت التشغيل
+     */
+    private int safeLoadByName(String rawName) {
+        try {
+            int resId = appContext.getResources().getIdentifier(
+                    rawName, "raw", appContext.getPackageName());
+            if (resId == 0) {
+                Log.d(TAG, "Sound file not found: " + rawName + ".ogg (add to res/raw/)");
+                return 0;
+            }
+            return soundPool != null ? soundPool.load(appContext, resId, 1) : 0;
+        } catch (Exception e) {
+            Log.w(TAG, "Error loading sound '" + rawName + "': " + e.getMessage());
+            return 0;
         }
     }
 
+    // للتوافق مع الكود القديم
     private int safeLoad(int resId) {
         try {
-            return soundPool != null ? soundPool.load(appContext, resId, 1) : 0;
+            return (soundPool != null && resId != 0) ? soundPool.load(appContext, resId, 1) : 0;
         } catch (Exception e) {
-            Log.w(TAG, "Sound resource not found: " + e.getMessage());
             return 0;
         }
     }
