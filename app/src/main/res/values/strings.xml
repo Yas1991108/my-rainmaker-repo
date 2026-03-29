@@ -650,5 +650,19 @@
     <string name="bg_reset_done">Background reset to default</string>
     <string name="bg_changed_done">Background image changed successfully</string>
 
-</resources>
 
+    <!-- Sound Settings — طوافة الوطني -->
+    <string name="sound_title">Sound Effects</string>
+    <string name="sound_enable">Enable Sound Effects</string>
+    <string name="sound_volume">Volume Level</string>
+    <string name="sound_theme">Sound Theme</string>
+    <string name="sound_theme_modern">Modern (Digital)</string>
+    <string name="sound_theme_classic">Classic (Mechanical)</string>
+    <string name="sound_theme_smart">Smart Home</string>
+    <string name="sound_theme_silent">Silent</string>
+    <string name="sound_theme_modern_desc">Clean digital tones for buttons and toggles</string>
+    <string name="sound_theme_classic_desc">Realistic relay and switch sounds</string>
+    <string name="sound_theme_smart_desc">Subtle notification-style sounds</string>
+    <string name="sound_theme_silent_desc">No sounds</string>
+
+</resources>
