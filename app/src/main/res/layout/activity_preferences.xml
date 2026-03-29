@@ -205,6 +205,150 @@
 
             </androidx.cardview.widget.CardView>
 
+
+            <!-- ===== Sound Settings Section (طوافة الوطني) ===== -->
+            <androidx.cardview.widget.CardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="@dimen/margin_16"
+                app:cardBackgroundColor="@color/color_card_background"
+                app:cardCornerRadius="8dp"
+                app:cardElevation="4dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="@dimen/margin_16">
+
+                    <!-- عنوان القسم -->
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/sound_title"
+                        android:textColor="@color/colorPrimary"
+                        android:textSize="18sp"
+                        android:textStyle="bold"
+                        android:layout_marginBottom="@dimen/margin_16" />
+
+                    <!-- تفعيل / كتم الصوت -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:layout_marginBottom="@dimen/margin_16">
+
+                        <TextView
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="@string/sound_enable"
+                            android:textColor="@color/color_text"
+                            android:textSize="16sp" />
+
+                        <androidx.appcompat.widget.SwitchCompat
+                            android:id="@+id/switch_sound_enabled"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content" />
+
+                    </LinearLayout>
+
+                    <!-- مستوى الصوت -->
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/sound_volume"
+                        android:textColor="@color/color_text"
+                        android:textSize="14sp"
+                        android:layout_marginBottom="@dimen/margin_8" />
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:layout_marginBottom="@dimen/margin_16">
+
+                        <SeekBar
+                            android:id="@+id/seekbar_volume"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:max="100"
+                            android:layout_marginEnd="@dimen/margin_8" />
+
+                        <TextView
+                            android:id="@+id/tv_volume_value"
+                            android:layout_width="40dp"
+                            android:layout_height="wrap_content"
+                            android:text="80%"
+                            android:textColor="@color/color_text"
+                            android:textSize="14sp"
+                            android:gravity="end" />
+
+                    </LinearLayout>
+
+                    <!-- مجموعة الأصوات -->
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/sound_theme"
+                        android:textColor="@color/color_text"
+                        android:textSize="14sp"
+                        android:layout_marginBottom="@dimen/margin_8" />
+
+                    <RadioGroup
+                        android:id="@+id/rg_sound_theme"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical">
+
+                        <RadioButton
+                            android:id="@+id/rb_sound_modern"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="@string/sound_theme_modern"
+                            android:textColor="@color/color_text"
+                            android:textSize="15sp"
+                            android:padding="@dimen/margin_8"
+                            android:layout_marginBottom="@dimen/margin_4" />
+
+                        <RadioButton
+                            android:id="@+id/rb_sound_classic"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="@string/sound_theme_classic"
+                            android:textColor="@color/color_text"
+                            android:textSize="15sp"
+                            android:padding="@dimen/margin_8"
+                            android:layout_marginBottom="@dimen/margin_4" />
+
+                        <RadioButton
+                            android:id="@+id/rb_sound_smart"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="@string/sound_theme_smart"
+                            android:textColor="@color/color_text"
+                            android:textSize="15sp"
+                            android:padding="@dimen/margin_8"
+                            android:layout_marginBottom="@dimen/margin_4" />
+
+                        <RadioButton
+                            android:id="@+id/rb_sound_silent"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="@string/sound_theme_silent"
+                            android:textColor="@color/color_text"
+                            android:textSize="15sp"
+                            android:padding="@dimen/margin_8" />
+
+                    </RadioGroup>
+
+                </LinearLayout>
+
+            </androidx.cardview.widget.CardView>
+
         </LinearLayout>
 
     </androidx.core.widget.NestedScrollView>
