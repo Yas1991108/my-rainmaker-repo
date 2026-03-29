@@ -15,6 +15,7 @@
 package com.espressif.ui.adapters;
 
 import android.content.Context;
+import com.espressif.ui.utils.SoundManager;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
@@ -180,6 +181,9 @@ public class EspDeviceAdapter extends RecyclerView.Adapter<EspDeviceAdapter.Devi
                                         OnOffClusterHelper espClusterHelper = new OnOffClusterHelper(espApp.chipClientMap.get(finalMatterNodeId));
                                         espClusterHelper.setOnOffDeviceStateOnOffClusterAsync(deviceId, !status, AppConstants.ENDPOINT_1);
                                         param.setSwitchStatus(!status);
+                                // تشغيل صوت التبديل
+                                SoundManager sm = SoundManager.getInstance(v.getContext());
+                                if (!status) sm.playToggleOff(); else sm.playToggleOn();
                                         break;
 
                                     case AppConstants.NODE_STATUS_REMOTELY_CONTROLLABLE:
