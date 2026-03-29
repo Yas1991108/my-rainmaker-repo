@@ -154,7 +154,6 @@
     <string name="title_activity_select_actions">اختيار الإجراءات</string>
     <string name="title_activity_select_event">اختيار الحدث</string>
     <string name="title_activity_edit_group">تعديل المجموعة</string>
-    <string name="title_activity_about_app">حول التطبيق</string>
 
     <!-- Status -->
     <string name="status_offline">غير متصل</string>
@@ -163,8 +162,6 @@
     <string name="offline_at">غير متصل في</string>
     <string name="local_device_text">متاح على الشبكة المحلية</string>
     <string name="node_offline">العقدة غير متصلة</string>
-    <string name="text_on">تشغيل</string>
-    <string name="text_off">إيقاف</string>
     <string name="on">تشغيل</string>
     <string name="off">إيقاف</string>
 
@@ -190,7 +187,6 @@
     <string name="node_fw_update">تحديث البرنامج الثابت</string>
     <string name="no_device_support_this_feature">لا يوجد جهاز\nيدعم هذه الميزة.</string>
     <string name="no_group_share_requests">لا توجد طلبات مشاركة</string>
-    <string name="device_node">عقدة</string>
     <string name="pending_requests">في انتظار القبول</string>
     <string name="supported_services">الخدمات المدعومة</string>
     <string name="node_cmd_resp">الأمر-الاستجابة</string>
@@ -249,11 +245,9 @@
     <string name="email">البريد الإلكتروني</string>
     <string name="user_id">معرّف المستخدم (تلقائي)</string>
     <string name="app_version">إصدار التطبيق</string>
-    <string name="version">الإصدار</string>
     <string name="privacy_policy">سياسة الخصوصية</string>
     <string name="terms_of_use">شروط الاستخدام</string>
     <string name="documentation">الوثائق</string>
-    <string name="about_app">حول التطبيق</string>
     <string name="powered_by_esp">مدعوم بواسطة ESPRESSIF</string>
     <string name="voice_services">خدمات الصوت</string>
     <string name="text_alexa">Amazon Alexa</string>
@@ -298,7 +292,6 @@
 
     <!-- Dialog -->
     <string name="dialog_msg_for_gps">خدمات الموقع معطلة. يرجى تفعيلها للمتابعة</string>
-    <string name="dialog_msg_remove_device">هل تريد إزالة هذا الجهاز؟</string>
     <string name="dialog_msg_delete_user">سيؤدي هذا إلى حذف حسابك وجميع البيانات المرتبطة به بشكل دائم.\nتصرف بحذر.</string>
     <string name="dialog_title_logout">تسجيل الخروج</string>
     <string name="dialog_title_error">خطأ!!</string>
