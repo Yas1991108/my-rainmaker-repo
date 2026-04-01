@@ -40,7 +40,7 @@
                 android:layout_gravity="center_horizontal"
                 android:lineSpacingExtra="6sp"
                 android:text="@string/app_version"
-                android:textColor="@color/colorPrimaryDark"
+                android:textColor="@color/color_text"
                 android:textSize="18sp" />
 
             <TextView
@@ -50,7 +50,7 @@
                 android:layout_gravity="center_horizontal"
                 android:layout_marginTop="@dimen/margin_8"
                 android:lineSpacingExtra="6sp"
-                android:textColor="@color/colorPrimaryDark"
+                android:textColor="@color/color_text"
                 android:textIsSelectable="true"
                 android:textSize="15sp" />
 
@@ -66,7 +66,7 @@
                     android:layout_height="wrap_content"
                     android:lineSpacingExtra="6sp"
                     android:text="@string/app_region"
-                    android:textColor="@color/colorPrimaryDark"
+                    android:textColor="@color/color_text"
                     android:textSize="16sp"
                     app:layout_constraintStart_toStartOf="parent"
                     app:layout_constraintTop_toTopOf="parent" />
@@ -79,7 +79,7 @@
                     android:layout_marginTop="1dp"
                     android:layout_marginBottom="1dp"
                     android:lineSpacingExtra="5sp"
-                    android:textColor="@color/colorPrimaryDark"
+                    android:textColor="@color/color_text"
                     android:textSize="16sp"
                     app:layout_constraintStart_toEndOf="@id/tv_app_region_label"
                     app:layout_constraintTop_toTopOf="parent" />
@@ -139,7 +139,7 @@
             android:layout_marginTop="@dimen/margin_32"
             android:layout_marginBottom="@dimen/margin_32"
             android:text="@string/powered_by_esp"
-            android:textColor="@color/colorPrimaryDark"
+            android:textColor="@color/color_text"
             android:textSize="14sp"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
@@ -148,3 +148,6 @@
     </androidx.constraintlayout.widget.ConstraintLayout>
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>
+
+
+

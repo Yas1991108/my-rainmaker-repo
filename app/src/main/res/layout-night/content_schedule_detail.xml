@@ -35,7 +35,7 @@
                     android:layout_alignParentStart="true"
                     android:layout_centerVertical="true"
                     android:text="Name"
-                    android:textColor="@color/colorPrimaryDark"
+                    android:textColor="@color/color_text"
                     android:textSize="18sp" />
 
                 <TextView
@@ -48,7 +48,7 @@
                     android:layout_toStartOf="@id/iv_right_arrow"
                     android:layout_toEndOf="@id/schedule_name_label"
                     android:gravity="end"
-                    android:textColor="@color/colorPrimaryDark"
+                    android:textColor="@color/color_text"
                     android:textSize="18sp" />
 
                 <ImageView
@@ -85,7 +85,7 @@
                     android:layout_height="wrap_content"
                     android:layout_alignParentStart="true"
                     android:text="Repeat"
-                    android:textColor="@color/colorPrimaryDark"
+                    android:textColor="@color/color_text"
                     android:textSize="18sp"
                     android:textStyle="bold" />
 
@@ -116,7 +116,7 @@
                     android:gravity="center"
                     android:padding="@dimen/margin_10"
                     android:text="@string/day_1"
-                    android:textColor="@color/colorPrimaryDark" />
+                    android:textColor="@color/color_text" />
 
                 <TextView
                     android:id="@+id/tv_day_2"
@@ -126,7 +126,7 @@
                     android:gravity="center"
                     android:padding="@dimen/margin_10"
                     android:text="@string/day_2"
-                    android:textColor="@color/colorPrimaryDark" />
+                    android:textColor="@color/color_text" />
 
                 <TextView
                     android:id="@+id/tv_day_3"
@@ -136,7 +136,7 @@
                     android:gravity="center"
                     android:padding="@dimen/margin_10"
                     android:text="@string/day_3"
-                    android:textColor="@color/colorPrimaryDark" />
+                    android:textColor="@color/color_text" />
 
                 <TextView
                     android:id="@+id/tv_day_4"
@@ -146,7 +146,7 @@
                     android:gravity="center"
                     android:padding="@dimen/margin_10"
                     android:text="@string/day_4"
-                    android:textColor="@color/colorPrimaryDark" />
+                    android:textColor="@color/color_text" />
 
                 <TextView
                     android:id="@+id/tv_day_5"
@@ -156,7 +156,7 @@
                     android:gravity="center"
                     android:padding="5dp"
                     android:text="@string/day_5"
-                    android:textColor="@color/colorPrimaryDark" />
+                    android:textColor="@color/color_text" />
 
                 <TextView
                     android:id="@+id/tv_day_6"
@@ -166,7 +166,7 @@
                     android:gravity="center"
                     android:padding="@dimen/margin_10"
                     android:text="@string/day_6"
-                    android:textColor="@color/colorPrimaryDark" />
+                    android:textColor="@color/color_text" />
 
                 <TextView
                     android:id="@+id/tv_day_7"
@@ -176,7 +176,7 @@
                     android:gravity="center"
                     android:padding="@dimen/margin_10"
                     android:text="@string/day_7"
-                    android:textColor="@color/colorPrimaryDark" />
+                    android:textColor="@color/color_text" />
 
             </LinearLayout>
 
@@ -195,7 +195,7 @@
                     android:layout_alignParentStart="true"
                     android:layout_centerVertical="true"
                     android:text="@string/actions"
-                    android:textColor="@color/colorPrimaryDark"
+                    android:textColor="@color/color_text"
                     android:textSize="18sp"
                     android:textStyle="bold" />
 
@@ -243,3 +243,6 @@
     </androidx.core.widget.NestedScrollView>
 
 </RelativeLayout>
+
+
+

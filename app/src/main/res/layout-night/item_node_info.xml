@@ -27,7 +27,7 @@
                 android:paddingEnd="@dimen/margin_24"
                 android:paddingBottom="@dimen/margin_8"
                 android:text="Title"
-                android:textColor="@color/colorPrimaryDark"
+                android:textColor="@color/color_text"
                 android:textSize="16sp" />
 
             <androidx.core.widget.ContentLoadingProgressBar
@@ -55,7 +55,7 @@
                 android:paddingTop="@dimen/margin_10"
                 android:paddingEnd="@dimen/margin_24"
                 android:paddingBottom="@dimen/margin_10"
-                android:textColor="@color/colorPrimaryDark"
+                android:textColor="@color/color_text"
                 android:textIsSelectable="true"
                 android:textSize="18sp" />
 
@@ -104,3 +104,6 @@
     </LinearLayout>
 
 </RelativeLayout>
+
+
+

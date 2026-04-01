@@ -35,7 +35,7 @@
                 android:layout_marginTop="2dp"
                 android:ellipsize="end"
                 android:maxLines="1"
-                android:textColor="@color/colorPrimaryDark"
+                android:textColor="@color/color_text"
                 android:textSize="17sp" />
 
             <TextView
@@ -44,7 +44,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="@dimen/margin_10"
                 android:alpha="0.8"
-                android:textColor="@color/colorPrimaryDark"
+                android:textColor="@color/color_text"
                 android:textIsSelectable="true"
                 android:textSize="16sp"
                 android:visibility="gone" />
@@ -54,3 +54,6 @@
     </RelativeLayout>
 
 </RelativeLayout>
+
+
+

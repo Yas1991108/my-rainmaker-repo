@@ -26,7 +26,7 @@
             android:paddingEnd="@dimen/margin_10"
             android:paddingBottom="@dimen/margin_8"
             android:text="Switch is online."
-            android:textColor="@color/colorPrimaryDark"
+            android:textColor="@color/color_text"
             android:textSize="17sp" />
 
         <RelativeLayout
@@ -58,3 +58,5 @@
     </RelativeLayout>
 
 </androidx.cardview.widget.CardView>
+
+

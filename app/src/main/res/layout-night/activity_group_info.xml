@@ -51,7 +51,7 @@
                         android:paddingTop="10dp"
                         android:paddingEnd="@dimen/margin_24"
                         android:text="Group Name"
-                        android:textColor="@color/colorPrimaryDark"
+                        android:textColor="@color/color_text"
                         android:textSize="16sp" />
 
                     <TextView
@@ -64,7 +64,7 @@
                         android:paddingTop="@dimen/margin_10"
                         android:paddingEnd="@dimen/margin_24"
                         android:paddingBottom="@dimen/margin_10"
-                        android:textColor="@color/colorPrimaryDark"
+                        android:textColor="@color/color_text"
                         android:textSize="16sp" />
 
                     <TextView
@@ -80,7 +80,7 @@
                         android:paddingTop="10dp"
                         android:paddingEnd="@dimen/margin_24"
                         android:text="Matter Fabric"
-                        android:textColor="@color/colorPrimaryDark"
+                        android:textColor="@color/color_text"
                         android:textSize="16sp" />
 
                     <TextView
@@ -93,7 +93,7 @@
                         android:paddingTop="@dimen/margin_10"
                         android:paddingEnd="@dimen/margin_24"
                         android:paddingBottom="@dimen/margin_10"
-                        android:textColor="@color/colorPrimaryDark"
+                        android:textColor="@color/color_text"
                         android:textSize="16sp" />
 
                     <TextView
@@ -109,7 +109,7 @@
                         android:paddingTop="10dp"
                         android:paddingEnd="@dimen/margin_24"
                         android:text="Shared with"
-                        android:textColor="@color/colorPrimaryDark"
+                        android:textColor="@color/color_text"
                         android:textSize="16sp" />
 
                     <androidx.recyclerview.widget.RecyclerView
@@ -177,7 +177,7 @@
                         android:paddingTop="10dp"
                         android:paddingEnd="@dimen/margin_24"
                         android:text="@string/pending_requests"
-                        android:textColor="@color/colorPrimaryDark"
+                        android:textColor="@color/color_text"
                         android:textSize="16sp"
                         android:visibility="gone" />
 
@@ -246,9 +246,12 @@
             android:layout_below="@id/progress_remove_sharing"
             android:layout_centerHorizontal="true"
             android:layout_marginTop="@dimen/margin_16"
-            android:textColor="@color/colorPrimaryDark"
+            android:textColor="@color/color_text"
             android:textSize="18sp" />
 
     </RelativeLayout>
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>
+
+
+

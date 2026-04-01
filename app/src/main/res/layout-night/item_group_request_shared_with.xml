@@ -19,7 +19,7 @@
             android:ellipsize="end"
             android:maxLines="1"
             android:singleLine="true"
-            android:textColor="@color/colorPrimaryDark"
+            android:textColor="@color/color_text"
             android:textSize="16sp"
             android:visibility="visible" />
 
@@ -46,3 +46,5 @@
 
 
 </RelativeLayout>
+
+

@@ -24,7 +24,7 @@
             android:ellipsize="end"
             android:maxLines="1"
             android:singleLine="true"
-            android:textColor="@color/colorPrimaryDark"
+            android:textColor="@color/color_text"
             android:textIsSelectable="true"
             android:textSize="16sp"
             android:visibility="visible" />
@@ -39,7 +39,7 @@
             android:alpha="0.7"
             android:ellipsize="end"
             android:maxLines="1"
-            android:textColor="@color/colorPrimaryDark"
+            android:textColor="@color/color_text"
             android:visibility="gone" />
 
         <ImageView
@@ -63,3 +63,6 @@
 
     </RelativeLayout>
 </RelativeLayout>
+
+
+
