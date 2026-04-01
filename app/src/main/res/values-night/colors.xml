@@ -1,7 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <color name="colorPrimary">#8864e4</color>
-    <color name="colorPrimaryDark">#ffffffff</color>
+    <!--
+        colorPrimaryDark في الوضع الداكن يجب أن يكون فاتحاً
+        لأنه يُستخدم كلون نص على الكروت الداكنة (color_card_background = #3A3636)
+        القيمة الصحيحة: #f2f1fc (نفس color_text في الوضع الداكن)
+        
+        المشكلة القديمة: كانت #ffffffff (أبيض) وبعض الكروت كانت بيضاء أيضاً
+        الحل: الكروت الآن تستخدم @color/color_card_background (داكن) وليس @android:color/white
+    -->
+    <color name="colorPrimaryDark">#f2f1fc</color>
     <color name="colorAccent">#8181a8</color>
     <color name="blue">#0033CC</color>
     <color name="orange">#FF9900</color>
@@ -28,10 +36,10 @@
     <color name="color_dark_gray">#555555</color>
     <color name="color_light_gray">#BBBBBB</color>
     <color name="toolbar_color">#211E1E</color>
-    <color name="splash_image_tint">#FFFFFF</color> <!-- White color for dark theme -->
+    <color name="splash_image_tint">#FFFFFF</color>
     <color name="transparent_color">#3A3636</color>
-    
+
     <!-- Device status colors -->
-    <color name="device_online_background">#454141</color> <!-- Slightly lighter gray for online devices -->
-    <color name="device_offline_background">#3A3636</color> <!-- Standard card background for offline devices -->
+    <color name="device_online_background">#454141</color>
+    <color name="device_offline_background">#3A3636</color>
 </resources>
