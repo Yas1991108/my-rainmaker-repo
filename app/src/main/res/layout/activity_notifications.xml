@@ -48,7 +48,7 @@
                 android:layout_marginTop="@dimen/margin_24"
                 android:gravity="center_horizontal"
                 android:text="@string/no_sharing_requests"
-                android:textColor="@color/colorPrimaryDark"
+                android:textColor="@color/color_text"
                 android:textSize="18sp" />
         </LinearLayout>
 
@@ -93,7 +93,7 @@
                             android:paddingTop="@dimen/margin_8"
                             android:paddingBottom="@dimen/margin_8"
                             android:text="Sharing Requests"
-                            android:textColor="@color/colorPrimaryDark"
+                            android:textColor="@color/color_text"
                             android:textSize="16sp"
                             android:visibility="gone" />
 
@@ -127,7 +127,7 @@
                             android:paddingTop="@dimen/margin_8"
                             android:paddingBottom="@dimen/margin_8"
                             android:text="Other Notifications"
-                            android:textColor="@color/colorPrimaryDark"
+                            android:textColor="@color/color_text"
                             android:textSize="16sp"
                             android:visibility="gone" />
 
@@ -171,8 +171,11 @@
             android:layout_below="@id/progress_sharing"
             android:layout_centerHorizontal="true"
             android:layout_marginTop="@dimen/margin_16"
-            android:textColor="@color/colorPrimaryDark"
+            android:textColor="@color/color_text"
             android:textSize="18sp" />
     </RelativeLayout>
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>
+
+
+

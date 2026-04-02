@@ -58,7 +58,7 @@
                 android:layout_marginTop="@dimen/margin_24"
                 android:gravity="center_horizontal"
                 android:text="@string/no_groups"
-                android:textColor="@color/colorPrimaryDark"
+                android:textColor="@color/color_text"
                 android:textSize="18sp" />
 
         </RelativeLayout>
@@ -66,3 +66,6 @@
     </androidx.coordinatorlayout.widget.CoordinatorLayout>
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>
+
+
+

@@ -37,7 +37,7 @@
                 android:layout_marginStart="8dp"
                 android:alpha="0.5"
                 android:text="Brightness"
-                android:textColor="@color/colorPrimaryDark"
+                android:textColor="@color/color_text"
                 android:textSize="12sp" />
 
             <com.warkiz.tickseekbar.TickSeekBar
@@ -118,7 +118,7 @@
                     android:layout_marginStart="8dp"
                     android:alpha="0.5"
                     android:text="Brightness"
-                    android:textColor="@color/colorPrimaryDark"
+                    android:textColor="@color/color_text"
                     android:textSize="12sp" />
 
                 <androidx.constraintlayout.widget.ConstraintLayout
@@ -144,7 +144,7 @@
                         android:gravity="start"
                         android:paddingStart="5dp"
                         android:src="@drawable/ic_brightness_high"
-                        android:textColor="@color/colorPrimaryDark"
+                        android:textColor="@color/color_text"
                         android:textSize="11sp"
                         app:layout_constraintBottom_toBottomOf="@id/rl_palette"
                         app:layout_constraintStart_toStartOf="@id/rl_palette" />
@@ -159,7 +159,7 @@
                         android:gravity="end"
                         android:paddingEnd="5dp"
                         android:src="@drawable/ic_brightness_high"
-                        android:textColor="@color/colorPrimaryDark"
+                        android:textColor="@color/color_text"
                         android:textSize="11sp"
                         app:layout_constraintBottom_toBottomOf="@id/rl_palette"
                         app:layout_constraintEnd_toEndOf="parent" />
@@ -192,7 +192,7 @@
                     android:layout_height="wrap_content"
                     android:alpha="0.5"
                     android:text="Title"
-                    android:textColor="@color/colorPrimaryDark"
+                    android:textColor="@color/color_text"
                     android:textSize="12sp" />
 
                 <TextView
@@ -201,7 +201,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="2dp"
                     android:text="@string/text_on"
-                    android:textColor="@color/colorPrimaryDark"
+                    android:textColor="@color/color_text"
                     android:textSize="16sp" />
 
             </LinearLayout>
@@ -239,7 +239,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="Title"
-                    android:textColor="@color/colorPrimaryDark"
+                    android:textColor="@color/color_text"
                     android:textSize="12sp" />
 
             </LinearLayout>
@@ -282,7 +282,7 @@
                     android:layout_height="wrap_content"
                     android:alpha="0.5"
                     android:text="Device Name"
-                    android:textColor="@color/colorPrimaryDark"
+                    android:textColor="@color/color_text"
                     android:textSize="12sp" />
 
                 <TextView
@@ -291,7 +291,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="2dp"
                     android:text="Smart Light"
-                    android:textColor="@color/colorPrimaryDark"
+                    android:textColor="@color/color_text"
                     android:textSize="16sp" />
 
             </LinearLayout>
@@ -333,7 +333,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:alpha="0.5"
-                    android:textColor="@color/colorPrimaryDark"
+                    android:textColor="@color/color_text"
                     android:textSize="12sp" />
 
                 <TextView
@@ -342,7 +342,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="2dp"
                     android:maxLines="2"
-                    android:textColor="@color/colorPrimaryDark"
+                    android:textColor="@color/color_text"
                     android:textSize="16sp" />
 
             </LinearLayout>
@@ -362,3 +362,6 @@
     </RelativeLayout>
 
 </com.google.android.material.card.MaterialCardView>
+
+
+

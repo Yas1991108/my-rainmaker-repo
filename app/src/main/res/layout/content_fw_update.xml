@@ -49,7 +49,7 @@
                 android:layout_marginTop="@dimen/margin_32"
                 android:gravity="center"
                 android:text="@string/progress_check_update"
-                android:textColor="@color/colorPrimaryDark"
+                android:textColor="@color/color_text"
                 android:textSize="18sp" />
 
             <TextView
@@ -61,7 +61,7 @@
                 android:layout_marginTop="@dimen/margin_18"
                 android:gravity="center"
                 android:text="@string/fw_up_to_date"
-                android:textColor="@color/colorPrimaryDark"
+                android:textColor="@color/color_text"
                 android:textSize="18sp" />
 
             <TextView
@@ -72,7 +72,7 @@
                 android:layout_centerHorizontal="true"
                 android:layout_marginTop="5dp"
                 android:gravity="center"
-                android:textColor="@color/colorPrimaryDark"
+                android:textColor="@color/color_text"
                 android:textSize="18sp"
                 android:visibility="invisible" />
 
@@ -90,3 +90,5 @@
     </androidx.constraintlayout.widget.ConstraintLayout>
 
 </FrameLayout>
+
+

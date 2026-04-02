@@ -19,7 +19,7 @@
             android:layout_toLeftOf="@id/iv_wifi_rssi"
             android:ellipsize="end"
             android:maxLines="1"
-            android:textColor="@color/colorPrimaryDark"
+            android:textColor="@color/color_text"
             android:textSize="16sp" />
 
         <ImageView
@@ -42,3 +42,6 @@
     </RelativeLayout>
 
 </RelativeLayout>
+
+
+

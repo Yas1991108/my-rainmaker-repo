@@ -33,7 +33,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="@dimen/margin_32"
                 android:text="@string/pop_instruction"
-                android:textColor="@color/colorPrimaryDark"
+                android:textColor="@color/color_text"
                 android:textSize="14sp"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toBottomOf="@id/iv_pop" />
@@ -82,3 +82,6 @@
     </androidx.core.widget.NestedScrollView>
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>
+
+
+

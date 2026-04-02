@@ -43,7 +43,7 @@
                 android:paddingEnd="@dimen/margin_10"
                 android:paddingBottom="@dimen/margin_10"
                 android:text="My Light Bulb"
-                android:textColor="@color/colorPrimaryDark"
+                android:textColor="@color/color_text"
                 android:textSize="17sp" />
 
             <TextView
@@ -57,7 +57,7 @@
                 android:paddingEnd="@dimen/margin_8"
                 android:paddingBottom="@dimen/margin_8"
                 android:text="Offline"
-                android:textColor="@color/colorPrimaryDark"
+                android:textColor="@color/color_text"
                 android:textSize="13sp" />
 
             <ImageView
@@ -80,3 +80,6 @@
     </RelativeLayout>
 
 </com.google.android.material.card.MaterialCardView>
+
+
+

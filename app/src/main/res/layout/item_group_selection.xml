@@ -31,7 +31,7 @@
                 android:ellipsize="end"
                 android:text="Group Name"
                 android:maxLines="1"
-                android:textColor="@color/colorPrimaryDark"
+                android:textColor="@color/color_text"
                 android:textSize="17sp" />
 
         </LinearLayout>
@@ -49,3 +49,6 @@
     </RelativeLayout>
 
 </com.google.android.material.card.MaterialCardView>
+
+
+

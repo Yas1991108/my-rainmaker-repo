@@ -85,10 +85,13 @@
                 android:layout_centerHorizontal="true"
                 android:layout_marginTop="@dimen/margin_16"
                 android:text="@string/progress_remove_node"
-                android:textColor="@color/colorPrimaryDark"
+                android:textColor="@color/color_text"
                 android:textSize="18sp" />
         </RelativeLayout>
 
     </androidx.coordinatorlayout.widget.CoordinatorLayout>
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>
+
+
+

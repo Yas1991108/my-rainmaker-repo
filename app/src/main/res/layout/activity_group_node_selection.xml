@@ -32,8 +32,11 @@
             android:layout_below="@id/progress_indicator"
             android:layout_centerHorizontal="true"
             android:layout_marginTop="@dimen/margin_16"
-            android:textColor="@color/colorPrimaryDark"
+            android:textColor="@color/color_text"
             android:textSize="18sp" />
     </RelativeLayout>
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>
+
+
+

@@ -35,9 +35,12 @@
             android:paddingTop="@dimen/margin_10"
             android:paddingEnd="@dimen/margin_10"
             android:paddingBottom="@dimen/margin_10"
-            android:textColor="@color/colorPrimaryDark"
+            android:textColor="@color/color_text"
             android:textSize="19sp" />
 
     </RelativeLayout>
 
 </com.google.android.material.card.MaterialCardView>
+
+
+

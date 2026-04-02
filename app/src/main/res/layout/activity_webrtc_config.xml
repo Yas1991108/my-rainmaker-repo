@@ -39,9 +39,12 @@
                 android:layout_centerHorizontal="true"
                 android:layout_marginTop="50dp"
                 android:text="@string/progress_we_chat_login"
-                android:textColor="@color/colorPrimaryDark"
+                android:textColor="@color/color_text"
                 android:textSize="18sp"
                 android:textStyle="bold" />
         </RelativeLayout>
     </androidx.constraintlayout.widget.ConstraintLayout>
 </androidx.coordinatorlayout.widget.CoordinatorLayout>
+
+
+

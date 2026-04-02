@@ -34,7 +34,7 @@
                     android:layout_alignParentStart="true"
                     android:layout_centerVertical="true"
                     android:text="Name"
-                    android:textColor="@color/colorPrimaryDark"
+                    android:textColor="@color/color_text"
                     android:textSize="18sp"
                     android:textStyle="bold" />
 
@@ -48,7 +48,7 @@
                     android:layout_toStartOf="@id/iv_right_arrow"
                     android:layout_toEndOf="@id/scene_name_label"
                     android:gravity="end"
-                    android:textColor="@color/colorPrimaryDark"
+                    android:textColor="@color/color_text"
                     android:textSize="18sp" />
 
                 <ImageView
@@ -77,7 +77,7 @@
                     android:layout_alignParentStart="true"
                     android:layout_centerVertical="true"
                     android:text="@string/actions"
-                    android:textColor="@color/colorPrimaryDark"
+                    android:textColor="@color/color_text"
                     android:textSize="18sp"
                     android:textStyle="bold" />
 
@@ -124,7 +124,7 @@
                     android:layout_height="wrap_content"
                     android:layout_alignParentStart="true"
                     android:text="@string/description"
-                    android:textColor="@color/colorPrimaryDark"
+                    android:textColor="@color/color_text"
                     android:textSize="18sp"
                     android:textStyle="bold" />
 
@@ -161,3 +161,6 @@
         android:layout_margin="@dimen/margin_32" />
 
 </RelativeLayout>
+
+
+

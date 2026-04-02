@@ -45,7 +45,7 @@
                 android:alpha="0.5"
                 android:padding="@dimen/margin_8"
                 android:text="@string/local_device_text"
-                android:textColor="@color/colorPrimaryDark"
+                android:textColor="@color/color_text"
                 android:textSize="14sp" />
 
         </RelativeLayout>
@@ -96,7 +96,7 @@
                     android:layout_height="wrap_content"
                     android:alpha="0.5"
                     android:text="Controller"
-                    android:textColor="@color/colorPrimaryDark"
+                    android:textColor="@color/color_text"
                     android:textSize="12sp" />
 
                 <TextView
@@ -104,7 +104,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="2dp"
                     android:text="Update Device List"
-                    android:textColor="@color/colorPrimaryDark"
+                    android:textColor="@color/color_text"
                     android:textSize="16sp" />
 
             </androidx.appcompat.widget.LinearLayoutCompat>
@@ -145,7 +145,7 @@
                     android:layout_height="wrap_content"
                     android:alpha="0.5"
                     android:text="RainMaker Controller"
-                    android:textColor="@color/colorPrimaryDark"
+                    android:textColor="@color/color_text"
                     android:textSize="12sp" />
 
                 <TextView
@@ -153,7 +153,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="2dp"
                     android:text="Update Params"
-                    android:textColor="@color/colorPrimaryDark"
+                    android:textColor="@color/color_text"
                     android:textSize="16sp" />
 
             </androidx.appcompat.widget.LinearLayoutCompat>
@@ -213,7 +213,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="Border Router"
-                    android:textColor="@color/colorPrimaryDark"
+                    android:textColor="@color/color_text"
                     android:textSize="12sp" />
 
                 <TextView
@@ -221,7 +221,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="2dp"
                     android:text="Update Thread Dataset"
-                    android:textColor="@color/colorPrimaryDark"
+                    android:textColor="@color/color_text"
                     android:textSize="16sp" />
             </androidx.appcompat.widget.LinearLayoutCompat>
 
@@ -258,7 +258,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="Border Router"
-                    android:textColor="@color/colorPrimaryDark"
+                    android:textColor="@color/color_text"
                     android:textSize="12sp" />
 
                 <TextView
@@ -266,7 +266,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="2dp"
                     android:text="Merge with Hub"
-                    android:textColor="@color/colorPrimaryDark"
+                    android:textColor="@color/color_text"
                     android:textSize="16sp" />
             </androidx.appcompat.widget.LinearLayoutCompat>
 
@@ -312,7 +312,7 @@
                     android:layout_centerInParent="true"
                     android:alpha="0.5"
                     android:text="@string/device_no_param"
-                    android:textColor="@color/colorPrimaryDark"
+                    android:textColor="@color/color_text"
                     android:textSize="18sp"
                     android:visibility="gone" />
 
@@ -337,3 +337,6 @@
     </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
 
 </RelativeLayout>
+
+
+

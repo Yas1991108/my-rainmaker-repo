@@ -106,7 +106,7 @@
                 android:ellipsize="end"
                 android:maxLines="1"
                 android:text="Smart Bulb"
-                android:textColor="@color/colorPrimaryDark"
+                android:textColor="@color/color_text"
                 android:textSize="16sp" />
 
             <RelativeLayout
@@ -153,3 +153,6 @@
     </androidx.constraintlayout.widget.ConstraintLayout>
 
 </com.google.android.material.card.MaterialCardView>
+
+
+

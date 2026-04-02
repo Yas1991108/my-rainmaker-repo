@@ -71,7 +71,7 @@
                 android:layout_height="wrap_content"
                 android:gravity="center"
                 android:text="@string/linked_with_alexa"
-                android:textColor="@color/colorPrimaryDark"
+                android:textColor="@color/color_text"
                 android:textSize="23sp"
                 android:textStyle="bold"
                 app:layout_constraintEnd_toEndOf="parent"
@@ -157,3 +157,6 @@
     </androidx.constraintlayout.widget.ConstraintLayout>
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>
+
+
+

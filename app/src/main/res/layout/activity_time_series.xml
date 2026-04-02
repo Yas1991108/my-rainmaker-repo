@@ -126,7 +126,7 @@
                         android:layout_height="wrap_content"
                         android:layout_centerInParent="true"
                         android:text="Mar 7, 2022"
-                        android:textColor="@color/colorPrimaryDark"
+                        android:textColor="@color/color_text"
                         android:textSize="19sp"
                         android:textStyle="bold" />
 
@@ -342,3 +342,6 @@
     </androidx.constraintlayout.widget.ConstraintLayout>
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>
+
+
+

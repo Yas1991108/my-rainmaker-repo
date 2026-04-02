@@ -19,7 +19,7 @@
             android:layout_marginTop="@dimen/margin_32"
             android:gravity="center"
             android:text="@string/delete_user_msg"
-            android:textColor="@color/colorPrimaryDark"
+            android:textColor="@color/color_text"
             android:textSize="20sp"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
@@ -38,3 +38,6 @@
     </androidx.constraintlayout.widget.ConstraintLayout>
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>
+
+
+

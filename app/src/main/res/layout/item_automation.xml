@@ -57,7 +57,7 @@
                     android:ellipsize="end"
                     android:maxLines="1"
                     android:text="Automation Name"
-                    android:textColor="@color/colorPrimaryDark"
+                    android:textColor="@color/color_text"
                     android:textSize="16sp"
                     android:textStyle="bold" />
 
@@ -72,7 +72,7 @@
                 android:ellipsize="end"
                 android:maxLines="1"
                 android:text="If: Light: Power:true"
-                android:textColor="@color/colorPrimaryDark"
+                android:textColor="@color/color_text"
                 android:textSize="13sp" />
 
             <View
@@ -96,7 +96,7 @@
                 android:maxLines="1"
                 android:paddingEnd="@dimen/margin_10"
                 android:text="Set: Light: Saturation:100,Power:true,Hue:180,Brightness:100"
-                android:textColor="@color/colorPrimaryDark"
+                android:textColor="@color/color_text"
                 android:textSize="13sp" />
 
         </RelativeLayout>
@@ -104,3 +104,6 @@
     </androidx.appcompat.widget.LinearLayoutCompat>
 
 </com.google.android.material.card.MaterialCardView>
+
+
+

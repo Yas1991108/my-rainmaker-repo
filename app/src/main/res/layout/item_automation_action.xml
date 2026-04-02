@@ -34,7 +34,7 @@
                 android:paddingEnd="@dimen/margin_10"
                 android:paddingBottom="@dimen/margin_10"
                 android:text="My Light Bulb"
-                android:textColor="@color/colorPrimaryDark"
+                android:textColor="@color/color_text"
                 android:textSize="15sp"
                 android:textStyle="bold" />
 
@@ -49,7 +49,7 @@
                 android:paddingEnd="@dimen/margin_8"
                 android:paddingBottom="@dimen/margin_8"
                 android:text="Saturation:85; Power:true; Brightness:25;"
-                android:textColor="@color/colorPrimaryDark"
+                android:textColor="@color/color_text"
                 android:textSize="13sp" />
 
         </RelativeLayout>
@@ -57,3 +57,6 @@
     </RelativeLayout>
 
 </RelativeLayout>
+
+
+

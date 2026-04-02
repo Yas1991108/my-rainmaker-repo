@@ -37,7 +37,7 @@
                 android:layout_centerHorizontal="true"
                 android:layout_marginTop="@dimen/margin_16"
                 android:text="@string/progress_tbr_config"
-                android:textColor="@color/colorPrimaryDark"
+                android:textColor="@color/color_text"
                 android:textSize="18sp"
                 android:textStyle="bold" />
 
@@ -50,7 +50,7 @@
                 android:layout_marginTop="@dimen/margin_10"
                 android:gravity="center"
                 android:text="@string/process_take_time"
-                android:textColor="@color/colorPrimaryDark"
+                android:textColor="@color/color_text"
                 android:textSize="16sp" />
 
         </RelativeLayout>
@@ -67,3 +67,6 @@
     </androidx.constraintlayout.widget.ConstraintLayout>
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>
+
+
+
