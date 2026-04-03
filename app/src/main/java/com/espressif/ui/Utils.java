@@ -285,6 +285,62 @@ public class Utils {
         return allParams;
     }
 
+
+    // ================================================================
+    // getDisplayName — يعرض اسم المعامل بشكل صحيح حتى لو getName() فارغ
+    // يستخدمه: SceneParamAdapter, ScheduleParamAdapter,
+    //           AutomationParamAdapter, ParamSelectionAdapter
+    // ================================================================
+    public static String getDisplayName(Param param) {
+        if (param == null) return "Param";
+
+        // 1. استخدم الاسم إذا كان موجوداً
+        if (!android.text.TextUtils.isEmpty(param.getName())) {
+            return param.getName();
+        }
+
+        // 2. اسم من paramType
+        String paramType = param.getParamType();
+        if (!android.text.TextUtils.isEmpty(paramType)) {
+            switch (paramType) {
+                case "esp.param.power":                return "Power";
+                case "esp.param.brightness":           return "Brightness";
+                case "esp.param.temperature":          return "Temperature";
+                case "esp.param.cct":                  return "Color Temperature";
+                case "esp.param.saturation":           return "Saturation";
+                case "esp.param.hue":                  return "Hue";
+                case "esp.param.speed":                return "Speed";
+                case "esp.param.ac-mode":              return "Mode";
+                case "esp.param.setpoint_temperature": return "Set Temperature";
+                case "esp.param.reboot":               return "Reboot";
+                case "esp.param.factory-reset":        return "Factory Reset";
+                case "esp.param.wifi-reset":           return "WiFi Reset";
+                case "esp.param.tz":                   return "Timezone";
+                case "esp.param.channel":              return "Channel";
+                default:
+                    String shortType = paramType.contains(".")
+                            ? paramType.substring(paramType.lastIndexOf('.') + 1)
+                            : paramType;
+                    shortType = shortType.replace("_", " ").replace("-", " ");
+                    if (!android.text.TextUtils.isEmpty(shortType)) {
+                        return Character.toUpperCase(shortType.charAt(0))
+                                + shortType.substring(1);
+                    }
+            }
+        }
+
+        // 3. من uiType
+        String uiType = param.getUiType();
+        if (!android.text.TextUtils.isEmpty(uiType)) {
+            if (uiType.contains(".")) {
+                return uiType.substring(uiType.lastIndexOf('.') + 1);
+            }
+            return uiType;
+        }
+
+        return "Param";
+    }
+
     public static ArrayList<Param> getWritableParams(ArrayList<Param> allParams) {
         if (allParams == null) {
             return new ArrayList<>();
@@ -611,3 +667,6 @@ public class Utils {
         return temp * 100;
     }
 }
+
+
+
