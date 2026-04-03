@@ -231,7 +231,7 @@ public class AutomationParamAdapter extends RecyclerView.Adapter<AutomationParam
 
         automationParamVH.tvSliderName.setVisibility(View.GONE);
         automationParamVH.intSlider.setVisibility(View.GONE);
-        automationParamVH.tvLabelPalette.setText(param.getName());
+        automationParamVH.tvLabelPalette.setText(Utils.getDisplayName(param));
         automationParamVH.paletteBar.setColor((int) param.getValue());
         automationParamVH.paletteBar.setThumbCircleRadius(12);
         automationParamVH.paletteBar.setTrackMarkHeight(6);
@@ -264,7 +264,7 @@ public class AutomationParamAdapter extends RecyclerView.Adapter<AutomationParam
 
         double sliderValue = param.getValue();
         automationParamVH.tvSliderName.setVisibility(View.VISIBLE);
-        automationParamVH.tvSliderName.setText(param.getName());
+        automationParamVH.tvSliderName.setText(Utils.getDisplayName(param));
         float max = param.getMaxBounds();
         float min = param.getMinBounds();
         String dataType = param.getDataType();
@@ -350,7 +350,7 @@ public class AutomationParamAdapter extends RecyclerView.Adapter<AutomationParam
         automationParamVH.rlUiTypeTrigger.setVisibility(View.GONE);
         automationParamVH.rlPalette.setVisibility(View.GONE);
 
-        automationParamVH.tvSwitchName.setText(param.getName());
+        automationParamVH.tvSwitchName.setText(Utils.getDisplayName(param));
         automationParamVH.tvSwitchStatus.setVisibility(View.VISIBLE);
 
         if (param.getSwitchStatus()) {
@@ -392,7 +392,7 @@ public class AutomationParamAdapter extends RecyclerView.Adapter<AutomationParam
         automationParamVH.rlUiTypeTrigger.setVisibility(View.VISIBLE);
         automationParamVH.rlPalette.setVisibility(View.GONE);
 
-        automationParamVH.tvTriggerName.setText(param.getName());
+        automationParamVH.tvTriggerName.setText(Utils.getDisplayName(param));
         automationParamVH.btnTrigger.setEnabled(false);
         automationParamVH.btnTrigger.setClickable(false);
         automationParamVH.btnTrigger.enableLongHold(false);
@@ -412,7 +412,7 @@ public class AutomationParamAdapter extends RecyclerView.Adapter<AutomationParam
         automationParamVH.rlUiTypeTrigger.setVisibility(View.GONE);
         automationParamVH.rlPalette.setVisibility(View.GONE);
 
-        automationParamVH.tvLabelName.setText(param.getName());
+        automationParamVH.tvLabelName.setText(Utils.getDisplayName(param));
         automationParamVH.tvLabelValue.setText(param.getLabelValue());
 
         automationParamVH.btnEdit.setVisibility(View.VISIBLE);
@@ -435,7 +435,7 @@ public class AutomationParamAdapter extends RecyclerView.Adapter<AutomationParam
         automationParamVH.rlUiTypeTrigger.setVisibility(View.GONE);
         automationParamVH.rlPalette.setVisibility(View.GONE);
 
-        automationParamVH.tvSpinnerName.setText(param.getName());
+        automationParamVH.tvSpinnerName.setText(Utils.getDisplayName(param));
         automationParamVH.spinner.setVisibility(View.VISIBLE);
 
         automationParamVH.spinner.setEnabled(false);
@@ -776,3 +776,6 @@ public class AutomationParamAdapter extends RecyclerView.Adapter<AutomationParam
         }
     }
 }
+
+
+
