@@ -238,7 +238,7 @@ public class SceneParamAdapter extends RecyclerView.Adapter<SceneParamAdapter.Sc
 
         sceneParamVH.tvSliderName.setVisibility(View.GONE);
         sceneParamVH.intSlider.setVisibility(View.GONE);
-        sceneParamVH.tvLabelPalette.setText(param.getName());
+        sceneParamVH.tvLabelPalette.setText(Utils.getDisplayName(param));
         sceneParamVH.paletteBar.setColor((int) param.getValue());
         sceneParamVH.paletteBar.setThumbCircleRadius(12);
         sceneParamVH.paletteBar.setTrackMarkHeight(6);
@@ -270,7 +270,7 @@ public class SceneParamAdapter extends RecyclerView.Adapter<SceneParamAdapter.Sc
 
         double sliderValue = param.getValue();
         sceneParamVH.tvSliderName.setVisibility(View.VISIBLE);
-        sceneParamVH.tvSliderName.setText(param.getName());
+        sceneParamVH.tvSliderName.setText(Utils.getDisplayName(param));
         float max = param.getMaxBounds();
         float min = param.getMinBounds();
         String dataType = param.getDataType();
@@ -362,7 +362,7 @@ public class SceneParamAdapter extends RecyclerView.Adapter<SceneParamAdapter.Sc
         sceneParamVH.rlUiTypeTrigger.setVisibility(View.GONE);
         sceneParamVH.rlPalette.setVisibility(View.GONE);
 
-        sceneParamVH.tvSwitchName.setText(param.getName());
+        sceneParamVH.tvSwitchName.setText(Utils.getDisplayName(param));
         sceneParamVH.tvSwitchStatus.setVisibility(View.VISIBLE);
 
         if (param.getSwitchStatus()) {
@@ -403,7 +403,7 @@ public class SceneParamAdapter extends RecyclerView.Adapter<SceneParamAdapter.Sc
         sceneParamVH.rlUiTypeTrigger.setVisibility(View.VISIBLE);
         sceneParamVH.rlPalette.setVisibility(View.GONE);
 
-        sceneParamVH.tvTriggerName.setText(param.getName());
+        sceneParamVH.tvTriggerName.setText(Utils.getDisplayName(param));
         sceneParamVH.btnTrigger.setEnabled(false);
         sceneParamVH.btnTrigger.setClickable(false);
         sceneParamVH.btnTrigger.enableLongHold(false);
@@ -420,7 +420,7 @@ public class SceneParamAdapter extends RecyclerView.Adapter<SceneParamAdapter.Sc
         sceneParamVH.rlUiTypeTrigger.setVisibility(View.GONE);
         sceneParamVH.rlPalette.setVisibility(View.GONE);
 
-        sceneParamVH.tvLabelName.setText(param.getName());
+        sceneParamVH.tvLabelName.setText(Utils.getDisplayName(param));
         sceneParamVH.tvLabelValue.setText(param.getLabelValue());
 
         sceneParamVH.btnEdit.setVisibility(View.VISIBLE);
@@ -443,7 +443,7 @@ public class SceneParamAdapter extends RecyclerView.Adapter<SceneParamAdapter.Sc
         sceneParamVH.rlUiTypeTrigger.setVisibility(View.GONE);
         sceneParamVH.rlPalette.setVisibility(View.GONE);
 
-        sceneParamVH.tvSpinnerName.setText(param.getName());
+        sceneParamVH.tvSpinnerName.setText(Utils.getDisplayName(param));
         sceneParamVH.spinner.setVisibility(View.VISIBLE);
 
         sceneParamVH.spinner.setEnabled(false);
@@ -803,3 +803,6 @@ public class SceneParamAdapter extends RecyclerView.Adapter<SceneParamAdapter.Sc
         }
     }
 }
+
+
+
