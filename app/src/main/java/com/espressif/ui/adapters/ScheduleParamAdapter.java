@@ -232,7 +232,7 @@ public class ScheduleParamAdapter extends RecyclerView.Adapter<ScheduleParamAdap
 
         scheduleParamVH.tvSliderName.setVisibility(View.GONE);
         scheduleParamVH.intSlider.setVisibility(View.GONE);
-        scheduleParamVH.tvLabelPalette.setText(param.getName());
+        scheduleParamVH.tvLabelPalette.setText(Utils.getDisplayName(param));
         scheduleParamVH.paletteBar.setColor((int) param.getValue());
         scheduleParamVH.paletteBar.setThumbCircleRadius(12);
         scheduleParamVH.paletteBar.setTrackMarkHeight(6);
@@ -264,7 +264,7 @@ public class ScheduleParamAdapter extends RecyclerView.Adapter<ScheduleParamAdap
 
         double sliderValue = param.getValue();
         scheduleParamVH.tvSliderName.setVisibility(View.VISIBLE);
-        scheduleParamVH.tvSliderName.setText(param.getName());
+        scheduleParamVH.tvSliderName.setText(Utils.getDisplayName(param));
         float max = param.getMaxBounds();
         float min = param.getMinBounds();
         String dataType = param.getDataType();
@@ -356,7 +356,7 @@ public class ScheduleParamAdapter extends RecyclerView.Adapter<ScheduleParamAdap
         scheduleParamVH.rlUiTypeTrigger.setVisibility(View.GONE);
         scheduleParamVH.rlPalette.setVisibility(View.GONE);
 
-        scheduleParamVH.tvSwitchName.setText(param.getName());
+        scheduleParamVH.tvSwitchName.setText(Utils.getDisplayName(param));
         scheduleParamVH.tvSwitchStatus.setVisibility(View.VISIBLE);
 
         if (param.getSwitchStatus()) {
@@ -397,7 +397,7 @@ public class ScheduleParamAdapter extends RecyclerView.Adapter<ScheduleParamAdap
         scheduleParamVH.rlUiTypeTrigger.setVisibility(View.VISIBLE);
         scheduleParamVH.rlPalette.setVisibility(View.GONE);
 
-        scheduleParamVH.tvTriggerName.setText(param.getName());
+        scheduleParamVH.tvTriggerName.setText(Utils.getDisplayName(param));
         scheduleParamVH.btnTrigger.setEnabled(false);
         scheduleParamVH.btnTrigger.setClickable(false);
         scheduleParamVH.btnTrigger.enableLongHold(false);
@@ -414,7 +414,7 @@ public class ScheduleParamAdapter extends RecyclerView.Adapter<ScheduleParamAdap
         scheduleParamVH.rlUiTypeTrigger.setVisibility(View.GONE);
         scheduleParamVH.rlPalette.setVisibility(View.GONE);
 
-        scheduleParamVH.tvLabelName.setText(param.getName());
+        scheduleParamVH.tvLabelName.setText(Utils.getDisplayName(param));
         scheduleParamVH.tvLabelValue.setText(param.getLabelValue());
 
         scheduleParamVH.btnEdit.setVisibility(View.VISIBLE);
@@ -437,7 +437,7 @@ public class ScheduleParamAdapter extends RecyclerView.Adapter<ScheduleParamAdap
         scheduleParamVH.rlUiTypeTrigger.setVisibility(View.GONE);
         scheduleParamVH.rlPalette.setVisibility(View.GONE);
 
-        scheduleParamVH.tvSpinnerName.setText(param.getName());
+        scheduleParamVH.tvSpinnerName.setText(Utils.getDisplayName(param));
         scheduleParamVH.spinner.setVisibility(View.VISIBLE);
 
         scheduleParamVH.spinner.setEnabled(false);
@@ -798,3 +798,6 @@ public class ScheduleParamAdapter extends RecyclerView.Adapter<ScheduleParamAdap
         }
     }
 }
+
+
+
