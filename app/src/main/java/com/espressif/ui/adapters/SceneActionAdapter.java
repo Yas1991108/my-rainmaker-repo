@@ -76,9 +76,8 @@ public class SceneActionAdapter extends RecyclerView.Adapter<SceneActionAdapter.
         while (itr.hasNext()) {
             Param p = (Param) itr.next();
 
-            if (!p.isDynamicParam()) {
-                itr.remove();
-            } else if (p.getParamType() != null && p.getParamType().equals(AppConstants.PARAM_TYPE_NAME)) {
+            // الإصلاح: حذف isDynamicParam
+            if (p.getParamType() != null && p.getParamType().equals(AppConstants.PARAM_TYPE_NAME)) {
                 itr.remove();
             } else if (!p.getProperties().contains(AppConstants.KEY_PROPERTY_WRITE)) {
                 itr.remove();
@@ -219,3 +218,6 @@ public class SceneActionAdapter extends RecyclerView.Adapter<SceneActionAdapter.
         }
     }
 }
+
+
+
