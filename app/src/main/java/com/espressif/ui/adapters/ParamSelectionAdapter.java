@@ -64,7 +64,7 @@ public class ParamSelectionAdapter extends RecyclerView.Adapter<ParamSelectionAd
     @Override
     public void onBindViewHolder(@NonNull final ParamViewHolder paramItemVH, final int position) {
 
-        paramItemVH.tvParam.setText(params.get(position).getName());
+        paramItemVH.tvParam.setText(Utils.getDisplayName(params.get(position)));
 
         paramItemVH.itemView.setOnClickListener(new View.OnClickListener() {
 
@@ -134,7 +134,7 @@ public class ParamSelectionAdapter extends RecyclerView.Adapter<ParamSelectionAd
 
         final AlertDialog alertDialog = new AlertDialog.Builder(context)
                 .setView(dialogView)
-                .setTitle(param.getName())
+                .setTitle(Utils.getDisplayName(param))
                 .create();
 
         SwitchCompat switchCompat = dialogView.findViewById(R.id.param_switch);
@@ -171,7 +171,7 @@ public class ParamSelectionAdapter extends RecyclerView.Adapter<ParamSelectionAd
 
         final AlertDialog alertDialog = new AlertDialog.Builder(context)
                 .setView(dialogView)
-                .setTitle(param.getName())
+                .setTitle(Utils.getDisplayName(param))
                 .create();
 
         TickSeekBar slider = dialogView.findViewById(R.id.param_slider);
@@ -232,7 +232,7 @@ public class ParamSelectionAdapter extends RecyclerView.Adapter<ParamSelectionAd
 
         final AlertDialog alertDialog = new AlertDialog.Builder(context)
                 .setView(dialogView)
-                .setTitle(param.getName())
+                .setTitle(Utils.getDisplayName(param))
                 .create();
 
         AppCompatEditText editText = dialogView.findViewById(R.id.param_edit_text);
@@ -278,7 +278,7 @@ public class ParamSelectionAdapter extends RecyclerView.Adapter<ParamSelectionAd
 
         final AlertDialog alertDialog = new AlertDialog.Builder(context)
                 .setView(dialogView)
-                .setTitle(param.getName())
+                .setTitle(Utils.getDisplayName(param))
                 .create();
 
         AppCompatEditText editText = dialogView.findViewById(R.id.param_edit_text);
@@ -318,3 +318,6 @@ public class ParamSelectionAdapter extends RecyclerView.Adapter<ParamSelectionAd
         }
     }
 }
+
+
+
