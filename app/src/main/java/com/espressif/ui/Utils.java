@@ -274,71 +274,14 @@ public class Utils {
             Param p = (Param) itr.next();
             p.setSelected(false);
 
-            if (!p.isDynamicParam()) {
-                itr.remove();
-            } else if (p.getParamType() != null && p.getParamType().equals(AppConstants.PARAM_TYPE_NAME)) {
+            // الإصلاح: حذف isDynamicParam من getEventDeviceParams أيضاً
+            if (p.getParamType() != null && p.getParamType().equals(AppConstants.PARAM_TYPE_NAME)) {
                 itr.remove();
             } else if (p.getUiType() != null && p.getUiType().equals(AppConstants.UI_TYPE_HIDDEN)) {
                 itr.remove();
             }
         }
         return allParams;
-    }
-
-
-    // ================================================================
-    // getDisplayName — يعرض اسم المعامل بشكل صحيح حتى لو getName() فارغ
-    // يستخدمه: SceneParamAdapter, ScheduleParamAdapter,
-    //           AutomationParamAdapter, ParamSelectionAdapter
-    // ================================================================
-    public static String getDisplayName(Param param) {
-        if (param == null) return "Param";
-
-        // 1. استخدم الاسم إذا كان موجوداً
-        if (!android.text.TextUtils.isEmpty(param.getName())) {
-            return param.getName();
-        }
-
-        // 2. اسم من paramType
-        String paramType = param.getParamType();
-        if (!android.text.TextUtils.isEmpty(paramType)) {
-            switch (paramType) {
-                case "esp.param.power":                return "Power";
-                case "esp.param.brightness":           return "Brightness";
-                case "esp.param.temperature":          return "Temperature";
-                case "esp.param.cct":                  return "Color Temperature";
-                case "esp.param.saturation":           return "Saturation";
-                case "esp.param.hue":                  return "Hue";
-                case "esp.param.speed":                return "Speed";
-                case "esp.param.ac-mode":              return "Mode";
-                case "esp.param.setpoint_temperature": return "Set Temperature";
-                case "esp.param.reboot":               return "Reboot";
-                case "esp.param.factory-reset":        return "Factory Reset";
-                case "esp.param.wifi-reset":           return "WiFi Reset";
-                case "esp.param.tz":                   return "Timezone";
-                case "esp.param.channel":              return "Channel";
-                default:
-                    String shortType = paramType.contains(".")
-                            ? paramType.substring(paramType.lastIndexOf('.') + 1)
-                            : paramType;
-                    shortType = shortType.replace("_", " ").replace("-", " ");
-                    if (!android.text.TextUtils.isEmpty(shortType)) {
-                        return Character.toUpperCase(shortType.charAt(0))
-                                + shortType.substring(1);
-                    }
-            }
-        }
-
-        // 3. من uiType
-        String uiType = param.getUiType();
-        if (!android.text.TextUtils.isEmpty(uiType)) {
-            if (uiType.contains(".")) {
-                return uiType.substring(uiType.lastIndexOf('.') + 1);
-            }
-            return uiType;
-        }
-
-        return "Param";
     }
 
     public static ArrayList<Param> getWritableParams(ArrayList<Param> allParams) {
@@ -349,9 +292,9 @@ public class Utils {
         while (itr.hasNext()) {
             Param p = (Param) itr.next();
 
-            if (!p.isDynamicParam()) {
-                itr.remove();
-            } else if (p.getParamType() != null && p.getParamType().equals(AppConstants.PARAM_TYPE_NAME)) {
+            // الإصلاح: حذفنا isDynamicParam — الـ params المخصصة لا تحصل عليه
+            // يكفي وجود خاصية WRITE
+            if (p.getParamType() != null && p.getParamType().equals(AppConstants.PARAM_TYPE_NAME)) {
                 itr.remove();
             } else if (!p.getProperties().contains(AppConstants.KEY_PROPERTY_WRITE)) {
                 itr.remove();
