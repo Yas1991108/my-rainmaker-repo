@@ -28,7 +28,6 @@ import androidx.appcompat.widget.SwitchCompat;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.espressif.AppConstants;
-import com.espressif.ui.Utils;
 import com.espressif.rainmaker.R;
 import com.espressif.ui.EventSelectionListener;
 import com.espressif.ui.models.Device;
@@ -65,7 +64,7 @@ public class ParamSelectionAdapter extends RecyclerView.Adapter<ParamSelectionAd
     @Override
     public void onBindViewHolder(@NonNull final ParamViewHolder paramItemVH, final int position) {
 
-        paramItemVH.tvParam.setText(Utils.getDisplayName(params.get(position)));
+        paramItemVH.tvParam.setText(getParamDisplayName(params.get(position)));
 
         paramItemVH.itemView.setOnClickListener(new View.OnClickListener() {
 
@@ -135,7 +134,7 @@ public class ParamSelectionAdapter extends RecyclerView.Adapter<ParamSelectionAd
 
         final AlertDialog alertDialog = new AlertDialog.Builder(context)
                 .setView(dialogView)
-                .setTitle(Utils.getDisplayName(param))
+                .setTitle(getParamDisplayName(param))
                 .create();
 
         SwitchCompat switchCompat = dialogView.findViewById(R.id.param_switch);
@@ -172,7 +171,7 @@ public class ParamSelectionAdapter extends RecyclerView.Adapter<ParamSelectionAd
 
         final AlertDialog alertDialog = new AlertDialog.Builder(context)
                 .setView(dialogView)
-                .setTitle(Utils.getDisplayName(param))
+                .setTitle(getParamDisplayName(param))
                 .create();
 
         TickSeekBar slider = dialogView.findViewById(R.id.param_slider);
@@ -233,7 +232,7 @@ public class ParamSelectionAdapter extends RecyclerView.Adapter<ParamSelectionAd
 
         final AlertDialog alertDialog = new AlertDialog.Builder(context)
                 .setView(dialogView)
-                .setTitle(Utils.getDisplayName(param))
+                .setTitle(getParamDisplayName(param))
                 .create();
 
         AppCompatEditText editText = dialogView.findViewById(R.id.param_edit_text);
@@ -279,7 +278,7 @@ public class ParamSelectionAdapter extends RecyclerView.Adapter<ParamSelectionAd
 
         final AlertDialog alertDialog = new AlertDialog.Builder(context)
                 .setView(dialogView)
-                .setTitle(Utils.getDisplayName(param))
+                .setTitle(getParamDisplayName(param))
                 .create();
 
         AppCompatEditText editText = dialogView.findViewById(R.id.param_edit_text);
@@ -318,6 +317,36 @@ public class ParamSelectionAdapter extends RecyclerView.Adapter<ParamSelectionAd
             itemView.setTag(this);
         }
     }
+    // =====================================================================
+    // Helper: get readable param name without relying on Utils.getDisplayName
+    // =====================================================================
+    private static String getParamDisplayName(com.espressif.ui.models.Param param) {
+        if (param == null) return "Param";
+        String name = param.getName();
+        if (name != null && !name.isEmpty()) return name;
+        String pt = param.getParamType();
+        if (pt != null && !pt.isEmpty()) {
+            if (pt.equals("esp.param.power"))               return "Power";
+            if (pt.equals("esp.param.brightness"))           return "Brightness";
+            if (pt.equals("esp.param.temperature"))          return "Temperature";
+            if (pt.equals("esp.param.cct"))                  return "Color Temp";
+            if (pt.equals("esp.param.saturation"))           return "Saturation";
+            if (pt.equals("esp.param.hue"))                  return "Hue";
+            if (pt.equals("esp.param.speed"))                return "Speed";
+            if (pt.equals("esp.param.ac-mode"))              return "Mode";
+            if (pt.equals("esp.param.setpoint_temperature")) return "Set Temp";
+            if (pt.equals("esp.param.value"))                return "Value";
+            String s = pt.contains(".") ? pt.substring(pt.lastIndexOf('.')+1) : pt;
+            s = s.replace("_", " ").replace("-", " ");
+            if (!s.isEmpty()) return Character.toUpperCase(s.charAt(0)) + s.substring(1);
+        }
+        String ui = param.getUiType();
+        if (ui != null && !ui.isEmpty()) {
+            return ui.contains(".") ? ui.substring(ui.lastIndexOf('.')+1) : ui;
+        }
+        return "Param";
+    }
+
 }
 
 
