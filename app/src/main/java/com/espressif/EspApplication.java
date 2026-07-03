@@ -18,7 +18,6 @@ import android.app.Application;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.content.Context;
-import android.content.res.Configuration;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Build;
@@ -48,7 +47,6 @@ import com.espressif.provisioning.ESPProvisionManager;
 import com.espressif.rainmaker.BuildConfig;
 import com.espressif.rainmaker.R;
 import com.espressif.ui.Utils;
-import com.espressif.ui.utils.SoundManager;
 import com.espressif.ui.activities.ConsentActivity;
 import com.espressif.ui.models.Automation;
 import com.espressif.ui.models.Device;
@@ -141,11 +139,6 @@ public class EspApplication extends Application {
     public static final String THEME_SYSTEM = "system";
     public static final String KEY_THEME_PREFERENCE = "theme_preference";
 
-    // Language constants — طوافة الوطني
-    public static final String KEY_LANGUAGE_PREFERENCE = "app_language";
-    public static final String LANGUAGE_ENGLISH = "en";
-    public static final String LANGUAGE_ARABIC  = "ar";
-
     public enum AppState {
         NO_USER_LOGIN,
         GETTING_DATA,
@@ -161,8 +154,6 @@ public class EspApplication extends Application {
         Log.d(TAG, "ESP Application is created");
 
         initializeTheme();
-        // تهيئة مدير الصوت عند بدء التطبيق
-        SoundManager.getInstance(this).loadCurrentTheme();
 
         nodeMap = new HashMap<>();
         scheduleMap = new HashMap<>();
@@ -208,6 +199,13 @@ public class EspApplication extends Application {
             case REFRESH_DATA:
                 if (!appState.equals(newState)) {
                     appState = newState;
+                    // =========================================================
+                    // الإصلاح: ابدأ mDNS فوراً بالتوازي مع طلب Cloud
+                    // بدلاً من الانتظار حتى يفشل Cloud request
+                    // =========================================================
+                    if (BuildConfig.isLocalControlSupported && nodeMap.size() > 0) {
+                        mdnsManager.discoverServices();
+                    }
                     getNodesFromCloud();
                 }
                 EventBus.getDefault().post(new UpdateEvent(UpdateEventType.EVENT_STATE_CHANGE_UPDATE));
@@ -1348,28 +1346,5 @@ public class EspApplication extends Application {
                 AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM);
                 break;
         }
-    }
-
-    // ============================================================
-    // Language support — طوافة الوطني
-    // ============================================================
-    public String getSavedLanguage() {
-        SharedPreferences prefs = getSharedPreferences(AppConstants.ESP_PREFERENCES, Context.MODE_PRIVATE);
-        return prefs.getString(KEY_LANGUAGE_PREFERENCE, LANGUAGE_ENGLISH);
-    }
-
-    public void saveLanguage(String languageCode) {
-        SharedPreferences prefs = getSharedPreferences(AppConstants.ESP_PREFERENCES, Context.MODE_PRIVATE);
-        prefs.edit().putString(KEY_LANGUAGE_PREFERENCE, languageCode).apply();
-    }
-
-    /**
-     * يجب استدعاؤها في attachBaseContext لكل Activity
-     * لتطبيق اللغة المحفوظة على Context الخاص بها
-     */
-    public static Context applyLanguageToContext(Context context) {
-        SharedPreferences prefs = context.getSharedPreferences(AppConstants.ESP_PREFERENCES, Context.MODE_PRIVATE);
-        String language = prefs.getString(KEY_LANGUAGE_PREFERENCE, LANGUAGE_ENGLISH);
-        return com.espressif.ui.utils.LanguageUtils.wrapContext(context, language);
     }
 }
