@@ -39,7 +39,6 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.aar.tapholdupbutton.TapHoldUpButton;
 import com.espressif.AppConstants;
-import com.espressif.ui.Utils;
 import com.espressif.EspApplication;
 import com.espressif.rainmaker.R;
 import com.espressif.ui.models.Device;
@@ -239,7 +238,7 @@ public class SceneParamAdapter extends RecyclerView.Adapter<SceneParamAdapter.Sc
 
         sceneParamVH.tvSliderName.setVisibility(View.GONE);
         sceneParamVH.intSlider.setVisibility(View.GONE);
-        sceneParamVH.tvLabelPalette.setText(Utils.getDisplayName(param));
+        sceneParamVH.tvLabelPalette.setText(getParamDisplayName(param));
         sceneParamVH.paletteBar.setColor((int) param.getValue());
         sceneParamVH.paletteBar.setThumbCircleRadius(12);
         sceneParamVH.paletteBar.setTrackMarkHeight(6);
@@ -271,7 +270,7 @@ public class SceneParamAdapter extends RecyclerView.Adapter<SceneParamAdapter.Sc
 
         double sliderValue = param.getValue();
         sceneParamVH.tvSliderName.setVisibility(View.VISIBLE);
-        sceneParamVH.tvSliderName.setText(Utils.getDisplayName(param));
+        sceneParamVH.tvSliderName.setText(getParamDisplayName(param));
         float max = param.getMaxBounds();
         float min = param.getMinBounds();
         String dataType = param.getDataType();
@@ -363,7 +362,7 @@ public class SceneParamAdapter extends RecyclerView.Adapter<SceneParamAdapter.Sc
         sceneParamVH.rlUiTypeTrigger.setVisibility(View.GONE);
         sceneParamVH.rlPalette.setVisibility(View.GONE);
 
-        sceneParamVH.tvSwitchName.setText(Utils.getDisplayName(param));
+        sceneParamVH.tvSwitchName.setText(getParamDisplayName(param));
         sceneParamVH.tvSwitchStatus.setVisibility(View.VISIBLE);
 
         if (param.getSwitchStatus()) {
@@ -404,7 +403,7 @@ public class SceneParamAdapter extends RecyclerView.Adapter<SceneParamAdapter.Sc
         sceneParamVH.rlUiTypeTrigger.setVisibility(View.VISIBLE);
         sceneParamVH.rlPalette.setVisibility(View.GONE);
 
-        sceneParamVH.tvTriggerName.setText(Utils.getDisplayName(param));
+        sceneParamVH.tvTriggerName.setText(getParamDisplayName(param));
         sceneParamVH.btnTrigger.setEnabled(false);
         sceneParamVH.btnTrigger.setClickable(false);
         sceneParamVH.btnTrigger.enableLongHold(false);
@@ -421,7 +420,7 @@ public class SceneParamAdapter extends RecyclerView.Adapter<SceneParamAdapter.Sc
         sceneParamVH.rlUiTypeTrigger.setVisibility(View.GONE);
         sceneParamVH.rlPalette.setVisibility(View.GONE);
 
-        sceneParamVH.tvLabelName.setText(Utils.getDisplayName(param));
+        sceneParamVH.tvLabelName.setText(getParamDisplayName(param));
         sceneParamVH.tvLabelValue.setText(param.getLabelValue());
 
         sceneParamVH.btnEdit.setVisibility(View.VISIBLE);
@@ -444,7 +443,7 @@ public class SceneParamAdapter extends RecyclerView.Adapter<SceneParamAdapter.Sc
         sceneParamVH.rlUiTypeTrigger.setVisibility(View.GONE);
         sceneParamVH.rlPalette.setVisibility(View.GONE);
 
-        sceneParamVH.tvSpinnerName.setText(Utils.getDisplayName(param));
+        sceneParamVH.tvSpinnerName.setText(getParamDisplayName(param));
         sceneParamVH.spinner.setVisibility(View.VISIBLE);
 
         sceneParamVH.spinner.setEnabled(false);
@@ -803,6 +802,36 @@ public class SceneParamAdapter extends RecyclerView.Adapter<SceneParamAdapter.Sc
             tvMaxHue = itemView.findViewById(R.id.tv_palette_end);
         }
     }
+    // =====================================================================
+    // Helper: get readable param name without relying on Utils.getDisplayName
+    // =====================================================================
+    private static String getParamDisplayName(com.espressif.ui.models.Param param) {
+        if (param == null) return "Param";
+        String name = param.getName();
+        if (name != null && !name.isEmpty()) return name;
+        String pt = param.getParamType();
+        if (pt != null && !pt.isEmpty()) {
+            if (pt.equals("esp.param.power"))               return "Power";
+            if (pt.equals("esp.param.brightness"))           return "Brightness";
+            if (pt.equals("esp.param.temperature"))          return "Temperature";
+            if (pt.equals("esp.param.cct"))                  return "Color Temp";
+            if (pt.equals("esp.param.saturation"))           return "Saturation";
+            if (pt.equals("esp.param.hue"))                  return "Hue";
+            if (pt.equals("esp.param.speed"))                return "Speed";
+            if (pt.equals("esp.param.ac-mode"))              return "Mode";
+            if (pt.equals("esp.param.setpoint_temperature")) return "Set Temp";
+            if (pt.equals("esp.param.value"))                return "Value";
+            String s = pt.contains(".") ? pt.substring(pt.lastIndexOf('.')+1) : pt;
+            s = s.replace("_", " ").replace("-", " ");
+            if (!s.isEmpty()) return Character.toUpperCase(s.charAt(0)) + s.substring(1);
+        }
+        String ui = param.getUiType();
+        if (ui != null && !ui.isEmpty()) {
+            return ui.contains(".") ? ui.substring(ui.lastIndexOf('.')+1) : ui;
+        }
+        return "Param";
+    }
+
 }
 
 
