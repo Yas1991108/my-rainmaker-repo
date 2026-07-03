@@ -39,7 +39,6 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.aar.tapholdupbutton.TapHoldUpButton;
 import com.espressif.AppConstants;
-import com.espressif.ui.Utils;
 import com.espressif.EspApplication;
 import com.espressif.rainmaker.R;
 import com.espressif.ui.models.Device;
@@ -232,7 +231,7 @@ public class AutomationParamAdapter extends RecyclerView.Adapter<AutomationParam
 
         automationParamVH.tvSliderName.setVisibility(View.GONE);
         automationParamVH.intSlider.setVisibility(View.GONE);
-        automationParamVH.tvLabelPalette.setText(Utils.getDisplayName(param));
+        automationParamVH.tvLabelPalette.setText(getParamDisplayName(param));
         automationParamVH.paletteBar.setColor((int) param.getValue());
         automationParamVH.paletteBar.setThumbCircleRadius(12);
         automationParamVH.paletteBar.setTrackMarkHeight(6);
@@ -265,7 +264,7 @@ public class AutomationParamAdapter extends RecyclerView.Adapter<AutomationParam
 
         double sliderValue = param.getValue();
         automationParamVH.tvSliderName.setVisibility(View.VISIBLE);
-        automationParamVH.tvSliderName.setText(Utils.getDisplayName(param));
+        automationParamVH.tvSliderName.setText(getParamDisplayName(param));
         float max = param.getMaxBounds();
         float min = param.getMinBounds();
         String dataType = param.getDataType();
@@ -351,7 +350,7 @@ public class AutomationParamAdapter extends RecyclerView.Adapter<AutomationParam
         automationParamVH.rlUiTypeTrigger.setVisibility(View.GONE);
         automationParamVH.rlPalette.setVisibility(View.GONE);
 
-        automationParamVH.tvSwitchName.setText(Utils.getDisplayName(param));
+        automationParamVH.tvSwitchName.setText(getParamDisplayName(param));
         automationParamVH.tvSwitchStatus.setVisibility(View.VISIBLE);
 
         if (param.getSwitchStatus()) {
@@ -393,7 +392,7 @@ public class AutomationParamAdapter extends RecyclerView.Adapter<AutomationParam
         automationParamVH.rlUiTypeTrigger.setVisibility(View.VISIBLE);
         automationParamVH.rlPalette.setVisibility(View.GONE);
 
-        automationParamVH.tvTriggerName.setText(Utils.getDisplayName(param));
+        automationParamVH.tvTriggerName.setText(getParamDisplayName(param));
         automationParamVH.btnTrigger.setEnabled(false);
         automationParamVH.btnTrigger.setClickable(false);
         automationParamVH.btnTrigger.enableLongHold(false);
@@ -413,7 +412,7 @@ public class AutomationParamAdapter extends RecyclerView.Adapter<AutomationParam
         automationParamVH.rlUiTypeTrigger.setVisibility(View.GONE);
         automationParamVH.rlPalette.setVisibility(View.GONE);
 
-        automationParamVH.tvLabelName.setText(Utils.getDisplayName(param));
+        automationParamVH.tvLabelName.setText(getParamDisplayName(param));
         automationParamVH.tvLabelValue.setText(param.getLabelValue());
 
         automationParamVH.btnEdit.setVisibility(View.VISIBLE);
@@ -436,7 +435,7 @@ public class AutomationParamAdapter extends RecyclerView.Adapter<AutomationParam
         automationParamVH.rlUiTypeTrigger.setVisibility(View.GONE);
         automationParamVH.rlPalette.setVisibility(View.GONE);
 
-        automationParamVH.tvSpinnerName.setText(Utils.getDisplayName(param));
+        automationParamVH.tvSpinnerName.setText(getParamDisplayName(param));
         automationParamVH.spinner.setVisibility(View.VISIBLE);
 
         automationParamVH.spinner.setEnabled(false);
@@ -776,6 +775,36 @@ public class AutomationParamAdapter extends RecyclerView.Adapter<AutomationParam
             tvMaxHue = itemView.findViewById(R.id.tv_palette_end);
         }
     }
+    // =====================================================================
+    // Helper: get readable param name without relying on Utils.getDisplayName
+    // =====================================================================
+    private static String getParamDisplayName(com.espressif.ui.models.Param param) {
+        if (param == null) return "Param";
+        String name = param.getName();
+        if (name != null && !name.isEmpty()) return name;
+        String pt = param.getParamType();
+        if (pt != null && !pt.isEmpty()) {
+            if (pt.equals("esp.param.power"))               return "Power";
+            if (pt.equals("esp.param.brightness"))           return "Brightness";
+            if (pt.equals("esp.param.temperature"))          return "Temperature";
+            if (pt.equals("esp.param.cct"))                  return "Color Temp";
+            if (pt.equals("esp.param.saturation"))           return "Saturation";
+            if (pt.equals("esp.param.hue"))                  return "Hue";
+            if (pt.equals("esp.param.speed"))                return "Speed";
+            if (pt.equals("esp.param.ac-mode"))              return "Mode";
+            if (pt.equals("esp.param.setpoint_temperature")) return "Set Temp";
+            if (pt.equals("esp.param.value"))                return "Value";
+            String s = pt.contains(".") ? pt.substring(pt.lastIndexOf('.')+1) : pt;
+            s = s.replace("_", " ").replace("-", " ");
+            if (!s.isEmpty()) return Character.toUpperCase(s.charAt(0)) + s.substring(1);
+        }
+        String ui = param.getUiType();
+        if (ui != null && !ui.isEmpty()) {
+            return ui.contains(".") ? ui.substring(ui.lastIndexOf('.')+1) : ui;
+        }
+        return "Param";
+    }
+
 }
 
 
