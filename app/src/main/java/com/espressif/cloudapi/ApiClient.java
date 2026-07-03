@@ -99,9 +99,14 @@ public class ApiClient {
             okHttpClient = new OkHttpClient.Builder()
                     .authenticator(authAuthenticator)
                     .sslSocketFactory(sslContext.getSocketFactory(), systemDefaultTrustManager())
-                    .connectTimeout(15, TimeUnit.SECONDS)
-                    .writeTimeout(15, TimeUnit.SECONDS)
-                    .readTimeout(15, TimeUnit.SECONDS)
+                    // ===================================================
+                    // الإصلاح: تقليل timeout من 15s إلى 5s
+                    // هذا يجعل التحكم المحلي يعمل خلال 5-8 ثوانٍ
+                    // بدلاً من انتظار ~60 ثانية بدون إنترنت
+                    // ===================================================
+                    .connectTimeout(5, TimeUnit.SECONDS)
+                    .writeTimeout(5, TimeUnit.SECONDS)
+                    .readTimeout(5, TimeUnit.SECONDS)
                     .build();
 
         } catch (KeyStoreException e) {
@@ -145,3 +150,6 @@ public class ApiClient {
         }
     }
 }
+
+
+
