@@ -15,7 +15,6 @@
 package com.espressif.ui.adapters;
 
 import android.content.Context;
-import com.espressif.ui.utils.SoundManager;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
@@ -38,6 +37,7 @@ import com.google.android.material.card.MaterialCardView;
 
 import com.aar.tapholdupbutton.TapHoldUpButton;
 import com.espressif.AppConstants;
+import com.espressif.ui.utils.DeviceIconManager;
 import com.espressif.ESPControllerAPIKeys;
 import com.espressif.EspApplication;
 import com.espressif.NetworkApiManager;
@@ -114,7 +114,11 @@ public class EspDeviceAdapter extends RecyclerView.Adapter<EspDeviceAdapter.Devi
         }
 
         deviceVh.tvDeviceName.setText(deviceName);
-        Utils.setDeviceIcon(deviceVh.ivDevice, device.getDeviceType());
+        // تطبيق الأيقونة المخصصة إن وجدت، وإلا الافتراضية
+        String _devId = device.getNodeId() + "_" + device.getDeviceName();
+        if (!DeviceIconManager.applyIcon(mContext, _devId, deviceVh.ivDevice)) {
+            Utils.setDeviceIcon(deviceVh.ivDevice, device.getDeviceType());
+        }
 
         if (!TextUtils.isEmpty(device.getPrimaryParamName())) {
 
@@ -181,9 +185,6 @@ public class EspDeviceAdapter extends RecyclerView.Adapter<EspDeviceAdapter.Devi
                                         OnOffClusterHelper espClusterHelper = new OnOffClusterHelper(espApp.chipClientMap.get(finalMatterNodeId));
                                         espClusterHelper.setOnOffDeviceStateOnOffClusterAsync(deviceId, !status, AppConstants.ENDPOINT_1);
                                         param.setSwitchStatus(!status);
-                                // تشغيل صوت التبديل
-                                SoundManager sm = SoundManager.getInstance(v.getContext());
-                                if (!status) sm.playToggleOff(); else sm.playToggleOn();
                                         break;
 
                                     case AppConstants.NODE_STATUS_REMOTELY_CONTROLLABLE:
@@ -286,8 +287,6 @@ public class EspDeviceAdapter extends RecyclerView.Adapter<EspDeviceAdapter.Devi
                         deviceVh.btnTrigger.setEnabled(true);
                         deviceVh.btnTrigger.setClickable(true);
                         deviceVh.btnTrigger.enableLongHold(true);
-                        // علّم هذا الزر كعنصر تحكم — له صوت خاص به
-                        deviceVh.btnTrigger.setTag("device_control");
                         deviceVh.btnTrigger.setOnButtonClickListener(new TapHoldUpButton.OnButtonClickListener() {
 
                             @Override
@@ -602,6 +601,16 @@ public class EspDeviceAdapter extends RecyclerView.Adapter<EspDeviceAdapter.Devi
                     context.startActivity(intent);
                 }
             }
+
+        // Long-press على البطاقة → اختيار الأيقونة
+        deviceVh.itemView.setOnLongClickListener(v -> {
+            DeviceIconManager.showIconPicker(mContext, _devId, deviceVh.ivDevice, () -> {
+                if (!DeviceIconManager.applyIcon(mContext, _devId, deviceVh.ivDevice)) {
+                    Utils.setDeviceIcon(deviceVh.ivDevice, device.getDeviceType());
+                }
+            });
+            return true;
+        });
         });
     }
 
@@ -760,6 +769,3 @@ public class EspDeviceAdapter extends RecyclerView.Adapter<EspDeviceAdapter.Devi
         }
     }
 }
-
-
-
