@@ -116,7 +116,7 @@ public class EspDeviceAdapter extends RecyclerView.Adapter<EspDeviceAdapter.Devi
         deviceVh.tvDeviceName.setText(deviceName);
         // تطبيق الأيقونة المخصصة إن وجدت، وإلا الافتراضية
         String _devId = device.getNodeId() + "_" + device.getDeviceName();
-        if (!DeviceIconManager.applyIcon(mContext, _devId, deviceVh.ivDevice)) {
+        if (!DeviceIconManager.applyIcon(context, _devId, deviceVh.ivDevice)) {
             Utils.setDeviceIcon(deviceVh.ivDevice, device.getDeviceType());
         }
 
@@ -601,16 +601,16 @@ public class EspDeviceAdapter extends RecyclerView.Adapter<EspDeviceAdapter.Devi
                     context.startActivity(intent);
                 }
             }
+        });
 
-        // Long-press على البطاقة → اختيار الأيقونة
+        // Long-press على البطاقة -> اختيار الأيقونة
         deviceVh.itemView.setOnLongClickListener(v -> {
-            DeviceIconManager.showIconPicker(mContext, _devId, deviceVh.ivDevice, () -> {
-                if (!DeviceIconManager.applyIcon(mContext, _devId, deviceVh.ivDevice)) {
+            DeviceIconManager.showIconPicker(context, _devId, deviceVh.ivDevice, () -> {
+                if (!DeviceIconManager.applyIcon(context, _devId, deviceVh.ivDevice)) {
                     Utils.setDeviceIcon(deviceVh.ivDevice, device.getDeviceType());
                 }
             });
             return true;
-        });
         });
     }
 
