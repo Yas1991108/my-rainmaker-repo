@@ -14,4 +14,4 @@ jobs:
 
       - name: Push to New Repo
         run: |
-          git push --mirror https://${{ github.actor }}:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository_owner }}/my-rainmaker-repo-2.git
+          git push --mirror https://${{ secrets.PAT }}@github.com/${{ github.repository_owner }}/my-rainmaker-repo-2.git
