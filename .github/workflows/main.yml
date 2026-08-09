@@ -1,17 +1,41 @@
-name: Mirror Repo
+name: Build RainMaker APK
 
 on:
+  push:
+    branches:
+      - V2
+  pull_request:
+    branches:
+      - V2
   workflow_dispatch:
 
 jobs:
-  mirror:
+  build_apk:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Source
+      - name: Checkout Code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          ref: V2
 
-      - name: Push to New Repo
-        run: |
-          git push --mirror https://${{ secrets.PAT }}@github.com/${{ github.repository_owner }}/my-rainmaker-repo-2.git
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+          cache: 'gradle'
+
+      - name: Create local.properties
+        run: touch local.properties
+
+      - name: Make Gradlew Executable
+        run: chmod +x gradlew
+
+      - name: Build Debug APK
+        run: ./gradlew assembleDebug
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: RainMaker-App-Debug-APK
+          path: app/build/outputs/apk/debug/app-debug.apk
