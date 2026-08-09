@@ -10,9 +10,9 @@
     android:clickable="true"
     android:focusable="true">
 
-    <!-- نص اسم الأيقونة/الجهاز -->
+    <!-- تعديل id النص ليصبح tv_icon_label -->
     <TextView
-        android:id="@+id/tv_icon_name"
+        android:id="@+id/tv_icon_label"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_weight="1"
@@ -21,9 +21,9 @@
         android:textColor="#E8E3F0"
         android:gravity="start|center_vertical" />
 
-    <!-- عرض الأيقونة -->
+    <!-- تعديل id الأيقونة ليصبح iv_icon_preview -->
     <ImageView
-        android:id="@+id/iv_icon"
+        android:id="@+id/iv_icon_preview"
         android:layout_width="44dp"
         android:layout_height="44dp"
         android:scaleType="fitCenter"
