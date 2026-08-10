@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    المسار: app/src/main/res/layout/item_card_style.xml
+    عنصر عرض شكل البطاقة في BottomSheet
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:gravity="center"
+    android:padding="8dp">
+
+    <com.google.android.material.card.MaterialCardView
+        android:id="@+id/card_preview"
+        android:layout_width="56dp"
+        android:layout_height="56dp"
+        android:layout_marginBottom="4dp"
+        app:cardBackgroundColor="@color/colorPrimary"
+        app:cardElevation="2dp"
+        android:clickable="true"
+        android:focusable="true"
+        android:foreground="?attr/selectableItemBackgroundBorderless">
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="match_parent" />
+
+    </com.google.android.material.card.MaterialCardView>
+
+    <TextView
+        android:id="@+id/tv_style_label"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textSize="10sp"
+        android:textColor="@color/color_text"
+        android:gravity="center"
+        android:maxLines="1" />
+
+</LinearLayout>
