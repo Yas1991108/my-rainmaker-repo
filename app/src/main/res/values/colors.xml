@@ -31,8 +31,18 @@
     <color name="splash_image_tint">#8864e4</color> <!-- Primary color for light theme -->
     <color name="transparent_color">#FFFFFF</color>
 
-    <!-- Device status colors (not used in light theme but defined for consistency) -->
+        <!-- Device status colors (not used in light theme but defined for consistency) -->
     <color name="device_online_background">#FFFFFF</color> <!-- White background for light theme -->
     <color name="device_offline_background">#FFFFFF</color> <!-- White background for light theme -->
 
+    <!-- ===== ألوان الخلفيات المخصصة (اختيارية) ===== -->
+    <color name="custom_bg_blue_light">#E3F2FD</color>
+    <color name="custom_bg_pink_light">#FCE4EC</color>
+    <color name="custom_bg_green_light">#E8F5E9</color>
+    <color name="custom_bg_orange_light">#FFF3E0</color>
+    <color name="custom_bg_purple_light">#F3E5F5</color>
+    <color name="custom_bg_grey_light">#ECEFF1</color>
+    <color name="custom_bg_red_light">#FFEBEE</color>
+    <color name="custom_bg_teal_light">#E0F7FA</color>
+    <color name="custom_bg_yellow_light">#FFF8E1</color>
 </resources>
