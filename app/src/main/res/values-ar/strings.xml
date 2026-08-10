@@ -411,10 +411,17 @@
     <string name="sound_theme_smart_desc">أصوات إشعارات خفيفة</string>
     <string name="sound_theme_silent_desc">بدون أصوات</string>
 
-    <!-- ===== إضافات تخصيص البطاقة ===== -->
-    <string name="customize_card">تخصيص البطاقة</string>
-    <string name="choose_icon">اختيار أيقونة</string>
-    <string name="choose_background_color">اختيار لون الخلفية</string>
-    <string name="reset_to_default">استعادة الافتراضي</string>
-    <string name="color_preview">معاينة اللون</string>
-</resources>
+    <!-- ===== تخصيص البطاقة ===== -->
+<string name="customize_card">تخصيص البطاقة</string>
+<string name="choose_icon">اختيار أيقونة</string>
+<string name="choose_background_color">اختيار لون الخلفية</string>
+<string name="choose_card_style">اختر شكل البطاقة</string>
+<string name="reset_to_default">استعادة الافتراضي</string>
+<string name="color_preview">معاينة اللون</string>
+
+<!-- أنماط البطاقة -->
+<string name="card_style_rectangle">مستطيل</string>
+<string name="card_style_rounded_small">مدور صغير</string>
+<string name="card_style_rounded_medium">مدور متوسط</string>
+<string name="card_style_rounded_large">مدور كبير</string>
+<string name="card_style_circle">دائري</string>
