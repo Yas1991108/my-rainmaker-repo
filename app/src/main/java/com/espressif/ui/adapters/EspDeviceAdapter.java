@@ -33,12 +33,11 @@ import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AlertDialog;
+import androidx.recyclerview.widget.ItemTouchHelper;
 import androidx.recyclerview.widget.RecyclerView;
-import com.google.android.material.card.MaterialCardView;
 
 import com.aar.tapholdupbutton.TapHoldUpButton;
 import com.espressif.AppConstants;
-import com.espressif.ui.utils.DeviceIconManager;
 import com.espressif.ESPControllerAPIKeys;
 import com.espressif.EspApplication;
 import com.espressif.NetworkApiManager;
@@ -55,21 +54,29 @@ import com.espressif.ui.models.Device;
 import com.espressif.ui.models.EspNode;
 import com.espressif.ui.models.Param;
 import com.espressif.ui.models.Service;
+import com.espressif.ui.utils.DeviceIconManager;
 import com.espressif.utils.NodeUtils;
+import com.google.android.material.card.MaterialCardView;
 import com.google.gson.JsonObject;
 
 import java.math.BigInteger;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 public class EspDeviceAdapter extends RecyclerView.Adapter<EspDeviceAdapter.DeviceViewHolder> {
 
+    private static final String TAG = "EspDeviceAdapter";
+
     private Context context;
     private NetworkApiManager networkApiManager;
     private ArrayList<Device> deviceList;
+    private ItemTouchHelper touchHelper;
+    private boolean isDragging = false;
 
     public EspDeviceAdapter(Context context, ArrayList<Device> deviceList) {
         this.context = context;
@@ -78,12 +85,77 @@ public class EspDeviceAdapter extends RecyclerView.Adapter<EspDeviceAdapter.Devi
     }
 
     @Override
-    public DeviceViewHolder onCreateViewHolder(ViewGroup parent, int viewType) {
+    public void onAttachedToRecyclerView(@NonNull RecyclerView recyclerView) {
+        super.onAttachedToRecyclerView(recyclerView);
 
+        // إنشاء ItemTouchHelper للسحب والإفلات
+        ItemTouchHelper.Callback callback = new ItemTouchHelper.SimpleCallback(
+                ItemTouchHelper.UP | ItemTouchHelper.DOWN | ItemTouchHelper.LEFT | ItemTouchHelper.RIGHT,
+                0) {
+            @Override
+            public boolean onMove(@NonNull RecyclerView recyclerView,
+                                  @NonNull RecyclerView.ViewHolder viewHolder,
+                                  @NonNull RecyclerView.ViewHolder target) {
+                int from = viewHolder.getAdapterPosition();
+                int to = target.getAdapterPosition();
+                if (from < to) {
+                    for (int i = from; i < to; i++) {
+                        Collections.swap(deviceList, i, i + 1);
+                    }
+                } else {
+                    for (int i = from; i > to; i--) {
+                        Collections.swap(deviceList, i, i - 1);
+                    }
+                }
+                notifyItemMoved(from, to);
+                return true;
+            }
+
+            @Override
+            public void onSwiped(@NonNull RecyclerView.ViewHolder viewHolder, int direction) {
+                // لا نستخدم السحب للإزالة
+            }
+
+            @Override
+            public boolean isLongPressDragEnabled() {
+                return false; // نتحكم يدوياً عبر onLongClick
+            }
+
+            @Override
+            public void onSelectedChanged(@Nullable RecyclerView.ViewHolder viewHolder, int actionState) {
+                super.onSelectedChanged(viewHolder, actionState);
+                if (actionState == ItemTouchHelper.ACTION_STATE_DRAG) {
+                    isDragging = true;
+                    if (viewHolder != null) {
+                        viewHolder.itemView.setAlpha(0.7f);
+                    }
+                }
+            }
+
+            @Override
+            public void clearView(@NonNull RecyclerView recyclerView,
+                                  @NonNull RecyclerView.ViewHolder viewHolder) {
+                super.clearView(recyclerView, viewHolder);
+                isDragging = false;
+                viewHolder.itemView.setAlpha(1f);
+
+                // حفظ الترتيب الجديد
+                List<String> order = new ArrayList<>();
+                for (Device d : deviceList) {
+                    order.add(d.getNodeId());
+                }
+                DeviceIconManager.saveDeviceOrder(context, order);
+            }
+        };
+        touchHelper = new ItemTouchHelper(callback);
+        touchHelper.attachToRecyclerView(recyclerView);
+    }
+
+    @Override
+    public DeviceViewHolder onCreateViewHolder(ViewGroup parent, int viewType) {
         LayoutInflater layoutInflater = LayoutInflater.from(context);
         View v = layoutInflater.inflate(R.layout.item_esp_device, parent, false);
-        DeviceViewHolder vh = new DeviceViewHolder(v);
-        return vh;
+        return new DeviceViewHolder(v);
     }
 
     @Override
@@ -105,7 +177,7 @@ public class EspDeviceAdapter extends RecyclerView.Adapter<EspDeviceAdapter.Devi
             deviceName = (node.getNodeMetadata() != null) ? node.getNodeMetadata().getDeviceName() : "";
         }
 
-        // Set device name according to device type if it is empty.
+        // تعيين اسم الجهاز حسب النوع إذا كان فارغاً
         if (TextUtils.isEmpty(deviceName)) {
             if (!TextUtils.isEmpty(device.getUserVisibleName())) {
                 deviceName = device.getUserVisibleName();
@@ -115,31 +187,14 @@ public class EspDeviceAdapter extends RecyclerView.Adapter<EspDeviceAdapter.Devi
         }
 
         deviceVh.tvDeviceName.setText(deviceName);
-        // تطبيق الأيقونة المخصصة إن وجدت، وإلا الافتراضية
-        String _devId = device.getNodeId() + "_" + device.getDeviceName();
-        if (!DeviceIconManager.applyIcon(context, _devId, deviceVh.ivDevice)) {
-            Utils.setDeviceIcon(deviceVh.ivDevice, device.getDeviceType());
-        }
 
-        // ===== تطبيق لون الخلفية المخصص مع تباين النص =====
-        int savedColor = DeviceIconManager.getSavedColor(context, _devId);
-        if (savedColor != Color.TRANSPARENT) {
-            deviceVh.cardView.setCardBackgroundColor(savedColor);
-            // ضبط لون النص حسب تباين الخلفية
-            int textColor = DeviceIconManager.getContrastTextColor(savedColor);
-            deviceVh.tvDeviceName.setTextColor(textColor);
-            deviceVh.tvStringValue.setTextColor(textColor);
-            deviceVh.tvOffline.setTextColor(textColor);
-            // ضبط لون النص في حالة عدم وجود قيمة
-        } else {
-            // استخدم اللون الافتراضي حسب الحالة (الموجود في setCardBackgroundForDeviceStatus)
-            setCardBackgroundForDeviceStatus(deviceVh, node, nodeStatus);
-            // استعادة ألوان النص الافتراضية
-            deviceVh.tvDeviceName.setTextColor(context.getColor(R.color.color_text));
-            deviceVh.tvStringValue.setTextColor(context.getColor(R.color.color_text));
-            deviceVh.tvOffline.setTextColor(context.getColor(R.color.colorAccent));
-        }
+        // ===== معرف فريد للجهاز (للتخزين) =====
+        String devId = device.getNodeId() + "_" + device.getDeviceName();
 
+        // ===== تطبيق التخصيصات المحفوظة =====
+        applyCustomizations(deviceVh, device, node, nodeStatus, devId);
+
+        // ===== عرض المعامل الأساسي =====
         if (!TextUtils.isEmpty(device.getPrimaryParamName())) {
 
             String paramName = device.getPrimaryParamName();
@@ -147,7 +202,6 @@ public class EspDeviceAdapter extends RecyclerView.Adapter<EspDeviceAdapter.Devi
             int paramIndex = -1;
 
             for (int i = 0; i < device.getParams().size(); i++) {
-
                 Param p = device.getParams().get(i);
                 if (p != null && paramName.equals(p.getName())) {
                     isParamFound = true;
@@ -162,7 +216,6 @@ public class EspDeviceAdapter extends RecyclerView.Adapter<EspDeviceAdapter.Devi
                 String dataType = param.getDataType();
 
                 if (TextUtils.isEmpty(dataType)) {
-
                     deviceVh.ivDeviceStatus.setVisibility(View.GONE);
                     deviceVh.tvStringValue.setVisibility(View.GONE);
                     deviceVh.btnTrigger.setVisibility(View.GONE);
@@ -470,6 +523,7 @@ public class EspDeviceAdapter extends RecyclerView.Adapter<EspDeviceAdapter.Devi
             deviceVh.tvStringValue.setVisibility(View.GONE);
         }
 
+        // ===== حالة الاتصال =====
         if (node != null && !node.isOnline() && nodeStatus != AppConstants.NODE_STATUS_MATTER_LOCAL
                 && nodeStatus != AppConstants.NODE_STATUS_REMOTELY_CONTROLLABLE) {
 
@@ -527,11 +581,7 @@ public class EspDeviceAdapter extends RecyclerView.Adapter<EspDeviceAdapter.Devi
             deviceVh.llOffline.setVisibility(View.INVISIBLE);
         }
 
-        // Set card background color for device status in dark theme only (إذا لم يكن هناك لون مخصص)
-        if (DeviceIconManager.getSavedColor(context, _devId) == Color.TRANSPARENT) {
-            setCardBackgroundForDeviceStatus(deviceVh, node, nodeStatus);
-        }
-
+        // ===== حالة الشبكة المحلية =====
         switch (nodeStatus) {
             case AppConstants.NODE_STATUS_MATTER_LOCAL:
                 if (!TextUtils.isEmpty(matterNodeId)) {
@@ -576,7 +626,7 @@ public class EspDeviceAdapter extends RecyclerView.Adapter<EspDeviceAdapter.Devi
                 break;
         }
 
-        // implement setOnClickListener event on item view.
+        // ===== النقر العادي =====
         deviceVh.itemView.setOnClickListener(new View.OnClickListener() {
 
             @Override
@@ -587,8 +637,6 @@ public class EspDeviceAdapter extends RecyclerView.Adapter<EspDeviceAdapter.Devi
                 boolean isMatterController = sharedPreferences.getBoolean(rmNodeId, false);
                 String key = "ctrl_setup_" + rmNodeId;
                 boolean isMatterCtrlSetupDone = sharedPreferences.getBoolean(key, false);
-                Log.d("TAG", "isMatterController : " + isMatterController);
-                Log.d("TAG", "isMatterCtrlSetupDone : " + isMatterCtrlSetupDone);
 
                 Service controllerService = NodeUtils.Companion.getService(espApp.nodeMap.get(device.getNodeId()), AppConstants.SERVICE_TYPE_MATTER_CONTROLLER);
                 boolean isCtlServiceAvailable = controllerService != null;
@@ -625,53 +673,110 @@ public class EspDeviceAdapter extends RecyclerView.Adapter<EspDeviceAdapter.Devi
             }
         });
 
-        // ===== Long-press على البطاقة -> فتح حوار تخصيص =====
-        deviceVh.itemView.setOnLongClickListener(v -> {
-            String devId = device.getNodeId() + "_" + device.getDeviceName();
-            DeviceIconManager.showCustomizationDialog(context, devId, deviceVh.ivDevice, () -> {
-                // بعد التغيير، نعيد تطبيق الأيقونة واللون على البطاقة مع تباين النص
-                if (!DeviceIconManager.applyIcon(context, devId, deviceVh.ivDevice)) {
-                    Utils.setDeviceIcon(deviceVh.ivDevice, device.getDeviceType());
+        // ===== الضغط المطول: تخصيص البطاقة + السحب =====
+        deviceVh.itemView.setOnLongClickListener(new View.OnLongClickListener() {
+            @Override
+            public boolean onLongClick(View v) {
+                if (!isDragging) {
+                    // فتح BottomSheet للتخصيص
+                    DeviceIconManager.showCustomizationDialog(context, devId, deviceVh.ivDevice, () -> {
+                        // إعادة تطبيق التخصيصات بعد التغيير
+                        applyCustomizations(deviceVh, device, node, nodeStatus, devId);
+                    });
+
+                    // بدء السحب (نفس الضغطة المطولة)
+                    if (touchHelper != null) {
+                        touchHelper.startDrag(deviceVh);
+                    }
+                    return true;
                 }
-                int color = DeviceIconManager.getSavedColor(context, devId);
-                if (color != Color.TRANSPARENT) {
-                    deviceVh.cardView.setCardBackgroundColor(color);
-                    int textColor = DeviceIconManager.getContrastTextColor(color);
-                    deviceVh.tvDeviceName.setTextColor(textColor);
-                    deviceVh.tvStringValue.setTextColor(textColor);
-                    deviceVh.tvOffline.setTextColor(textColor);
-                } else {
-                    // استعادة اللون الافتراضي حسب الحالة
-                    setCardBackgroundForDeviceStatus(deviceVh, node, nodeStatus);
-                    // استعادة ألوان النص الافتراضية
-                    deviceVh.tvDeviceName.setTextColor(context.getColor(R.color.color_text));
-                    deviceVh.tvStringValue.setTextColor(context.getColor(R.color.color_text));
-                    deviceVh.tvOffline.setTextColor(context.getColor(R.color.colorAccent));
-                }
-            });
-            return true;
+                return false;
+            }
         });
     }
 
-    @Override
-    public int getItemCount() {
-        return deviceList.size();
+    // ============================================================
+    // تطبيق التخصيصات المحفوظة على البطاقة
+    // ============================================================
+    private void applyCustomizations(DeviceViewHolder vh, Device device, EspNode node,
+                                     int nodeStatus, String devId) {
+
+        // 1. الأيقونة
+        if (!DeviceIconManager.applyIcon(context, devId, vh.ivDevice)) {
+            Utils.setDeviceIcon(vh.ivDevice, device.getDeviceType());
+        }
+
+        // 2. لون الخلفية
+        int savedColor = DeviceIconManager.getSavedColor(context, devId);
+        if (savedColor != Color.TRANSPARENT) {
+            vh.cardView.setCardBackgroundColor(savedColor);
+            int textColor = DeviceIconManager.getContrastTextColor(savedColor);
+            vh.tvDeviceName.setTextColor(textColor);
+            vh.tvStringValue.setTextColor(textColor);
+            vh.tvOffline.setTextColor(textColor);
+        } else {
+            // اللون الافتراضي حسب الحالة
+            setCardBackgroundForDeviceStatus(vh, node, nodeStatus);
+            // استعادة ألوان النص الافتراضية
+            vh.tvDeviceName.setTextColor(context.getColor(R.color.color_text));
+            vh.tvStringValue.setTextColor(context.getColor(R.color.color_text));
+            vh.tvOffline.setTextColor(context.getColor(R.color.colorAccent));
+        }
+
+        // 3. شكل البطاقة
+        int styleId = DeviceIconManager.getSavedCardStyle(context, devId);
+        DeviceIconManager.CardStyle style = DeviceIconManager.CardStyle.fromId(styleId);
+
+        if (style == DeviceIconManager.CardStyle.CIRCLE) {
+            // الدائري: نجعل نصف القطر مساوياً لنصف الارتفاع (يُحسب في وقت العرض)
+            vh.cardView.post(() -> {
+                int height = vh.cardView.getHeight();
+                if (height > 0) {
+                    vh.cardView.setRadius(height / 2f);
+                } else {
+                    vh.cardView.setRadius(1000f);
+                }
+            });
+        } else {
+            float density = context.getResources().getDisplayMetrics().density;
+            vh.cardView.setRadius(style.radiusDp * density);
+        }
+
+        // تحسين الظل
+        vh.cardView.setCardElevation(style.radiusDp > 0 ? 8f : 2f);
     }
 
-    public void updateList(ArrayList<Device> updatedDeviceList) {
-        deviceList = updatedDeviceList;
-        notifyDataSetChanged();
+    // ============================================================
+    // تعيين خلفية البطاقة حسب حالة الجهاز (للأوضاع الداكنة)
+    // ============================================================
+    private void setCardBackgroundForDeviceStatus(DeviceViewHolder deviceVh, EspNode node, int nodeStatus) {
+        int nightModeFlags = context.getResources().getConfiguration().uiMode & android.content.res.Configuration.UI_MODE_NIGHT_MASK;
+        boolean isDarkTheme = nightModeFlags == android.content.res.Configuration.UI_MODE_NIGHT_YES;
+
+        if (isDarkTheme) {
+            boolean isOnline = (node != null && node.isOnline()) ||
+                    nodeStatus == AppConstants.NODE_STATUS_MATTER_LOCAL ||
+                    nodeStatus == AppConstants.NODE_STATUS_REMOTELY_CONTROLLABLE;
+
+            if (isOnline) {
+                deviceVh.cardView.setCardBackgroundColor(context.getColor(R.color.device_online_background));
+            } else {
+                deviceVh.cardView.setCardBackgroundColor(context.getColor(R.color.device_offline_background));
+            }
+        } else {
+            deviceVh.cardView.setCardBackgroundColor(context.getColor(R.color.color_card_background));
+        }
     }
 
+    // ============================================================
+    // تحذير الوصول إلى وحدة التحكم
+    // ============================================================
     private void controllerNeedsAccessWarning(String rmNodeId, int strResId, boolean isCtrlService) {
-
         AlertDialog.Builder builder = new AlertDialog.Builder(context);
         builder.setCancelable(true);
         builder.setMessage(strResId);
 
-        // Set up the buttons
         builder.setPositiveButton(R.string.btn_ok, new DialogInterface.OnClickListener() {
-
             @Override
             public void onClick(DialogInterface dialog, int which) {
                 dialog.dismiss();
@@ -688,8 +793,10 @@ public class EspDeviceAdapter extends RecyclerView.Adapter<EspDeviceAdapter.Devi
         builder.show();
     }
 
+    // ============================================================
+    // تعيين اسم الجهاز من النوع
+    // ============================================================
     private String setDeviceNameFromType(String deviceType) {
-
         String name = "";
         if (!TextUtils.isEmpty(deviceType)) {
             switch (deviceType) {
@@ -752,41 +859,26 @@ public class EspDeviceAdapter extends RecyclerView.Adapter<EspDeviceAdapter.Devi
                     name = "Doorbell";
                     break;
                 default:
-                    name = name;
+                    name = "";
                     break;
             }
         }
         return name;
     }
 
-    /**
-     * Set card background color for device status (dark theme only)
-     * هذه الطريقة تُستخدم فقط إذا لم يكن لون مخصص محفوظاً.
-     */
-    private void setCardBackgroundForDeviceStatus(DeviceViewHolder deviceVh, EspNode node, int nodeStatus) {
-        // Check if we're in dark theme
-        int nightModeFlags = context.getResources().getConfiguration().uiMode & android.content.res.Configuration.UI_MODE_NIGHT_MASK;
-        boolean isDarkTheme = nightModeFlags == android.content.res.Configuration.UI_MODE_NIGHT_YES;
-        
-        if (isDarkTheme) {
-            // Only apply background color changes in dark theme
-            boolean isOnline = (node != null && node.isOnline()) || 
-                             nodeStatus == AppConstants.NODE_STATUS_MATTER_LOCAL ||
-                             nodeStatus == AppConstants.NODE_STATUS_REMOTELY_CONTROLLABLE;
-            
-            if (isOnline) {
-                // Online devices get a slightly lighter background
-                deviceVh.cardView.setCardBackgroundColor(context.getColor(R.color.device_online_background));
-            } else {
-                // Offline devices get the standard card background
-                deviceVh.cardView.setCardBackgroundColor(context.getColor(R.color.device_offline_background));
-            }
-        } else {
-            // في الوضع الفاتح، نستخدم اللون الأبيض أو الافتراضي
-            deviceVh.cardView.setCardBackgroundColor(context.getColor(R.color.color_card_background));
-        }
+    @Override
+    public int getItemCount() {
+        return deviceList == null ? 0 : deviceList.size();
     }
 
+    public void updateList(ArrayList<Device> updatedDeviceList) {
+        this.deviceList = updatedDeviceList;
+        notifyDataSetChanged();
+    }
+
+    // ============================================================
+    // ViewHolder
+    // ============================================================
     static class DeviceViewHolder extends RecyclerView.ViewHolder {
 
         TextView tvDeviceName, tvStringValue, tvOffline;
