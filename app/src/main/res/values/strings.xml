@@ -665,4 +665,10 @@
     <string name="sound_theme_smart_desc">Subtle notification-style sounds</string>
     <string name="sound_theme_silent_desc">No sounds</string>
 
+    <!-- ===== إضافات تخصيص البطاقة ===== -->
+    <string name="customize_card">Customize Card</string>
+    <string name="choose_icon">Choose Icon</string>
+    <string name="choose_background_color">Choose Background Color</string>
+    <string name="reset_to_default">Reset to Default</string>
+    <string name="color_preview">Color Preview</string>
 </resources>
