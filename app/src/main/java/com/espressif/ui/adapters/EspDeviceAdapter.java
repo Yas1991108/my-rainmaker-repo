@@ -1,17 +1,5 @@
 // Copyright 2020 Espressif Systems (Shanghai) PTE LTD
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
+// ...
 package com.espressif.ui.adapters;
 
 import android.content.Context;
@@ -118,6 +106,15 @@ public class EspDeviceAdapter extends RecyclerView.Adapter<EspDeviceAdapter.Devi
         String _devId = device.getNodeId() + "_" + device.getDeviceName();
         if (!DeviceIconManager.applyIcon(context, _devId, deviceVh.ivDevice)) {
             Utils.setDeviceIcon(deviceVh.ivDevice, device.getDeviceType());
+        }
+
+        // ===== تطبيق لون الخلفية المخصص =====
+        int savedColor = DeviceIconManager.getSavedColor(context, _devId);
+        if (savedColor != android.graphics.Color.TRANSPARENT) {
+            deviceVh.cardView.setCardBackgroundColor(savedColor);
+        } else {
+            // استخدم اللون الافتراضي حسب الحالة (الموجود في setCardBackgroundForDeviceStatus)
+            setCardBackgroundForDeviceStatus(deviceVh, node, nodeStatus);
         }
 
         if (!TextUtils.isEmpty(device.getPrimaryParamName())) {
@@ -507,8 +504,10 @@ public class EspDeviceAdapter extends RecyclerView.Adapter<EspDeviceAdapter.Devi
             deviceVh.llOffline.setVisibility(View.INVISIBLE);
         }
 
-        // Set card background color for online devices in dark theme only
-        setCardBackgroundForDeviceStatus(deviceVh, node, nodeStatus);
+        // Set card background color for device status in dark theme only (إذا لم يكن هناك لون مخصص)
+        if (DeviceIconManager.getSavedColor(context, _devId) == android.graphics.Color.TRANSPARENT) {
+            setCardBackgroundForDeviceStatus(deviceVh, node, nodeStatus);
+        }
 
         switch (nodeStatus) {
             case AppConstants.NODE_STATUS_MATTER_LOCAL:
@@ -603,11 +602,20 @@ public class EspDeviceAdapter extends RecyclerView.Adapter<EspDeviceAdapter.Devi
             }
         });
 
-        // Long-press على البطاقة -> اختيار الأيقونة
+        // ===== Long-press على البطاقة -> فتح حوار تخصيص (أيقونة + لون خلفية) =====
         deviceVh.itemView.setOnLongClickListener(v -> {
-            DeviceIconManager.showIconPicker(context, _devId, deviceVh.ivDevice, () -> {
-                if (!DeviceIconManager.applyIcon(context, _devId, deviceVh.ivDevice)) {
+            String devId = device.getNodeId() + "_" + device.getDeviceName();
+            DeviceIconManager.showCustomizationDialog(context, devId, deviceVh.ivDevice, () -> {
+                // بعد التغيير، نعيد تطبيق الأيقونة واللون على البطاقة
+                if (!DeviceIconManager.applyIcon(context, devId, deviceVh.ivDevice)) {
                     Utils.setDeviceIcon(deviceVh.ivDevice, device.getDeviceType());
+                }
+                int color = DeviceIconManager.getSavedColor(context, devId);
+                if (color != android.graphics.Color.TRANSPARENT) {
+                    deviceVh.cardView.setCardBackgroundColor(color);
+                } else {
+                    // استعادة اللون الافتراضي حسب الحالة
+                    setCardBackgroundForDeviceStatus(deviceVh, node, nodeStatus);
                 }
             });
             return true;
@@ -722,6 +730,7 @@ public class EspDeviceAdapter extends RecyclerView.Adapter<EspDeviceAdapter.Devi
 
     /**
      * Set card background color for device status (dark theme only)
+     * هذه الطريقة تُستخدم فقط إذا لم يكن لون مخصص محفوظاً.
      */
     private void setCardBackgroundForDeviceStatus(DeviceViewHolder deviceVh, EspNode node, int nodeStatus) {
         // Check if we're in dark theme
@@ -741,8 +750,10 @@ public class EspDeviceAdapter extends RecyclerView.Adapter<EspDeviceAdapter.Devi
                 // Offline devices get the standard card background
                 deviceVh.cardView.setCardBackgroundColor(context.getColor(R.color.device_offline_background));
             }
+        } else {
+            // في الوضع الفاتح، نستخدم اللون الأبيض أو الافتراضي
+            deviceVh.cardView.setCardBackgroundColor(context.getColor(R.color.color_card_background));
         }
-        // In light theme, we don't change the background (let MaterialCardView handle it)
     }
 
     static class DeviceViewHolder extends RecyclerView.ViewHolder {
