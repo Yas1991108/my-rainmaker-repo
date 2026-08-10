@@ -1,11 +1,24 @@
 // Copyright 2020 Espressif Systems (Shanghai) PTE LTD
-// ...
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package com.espressif.ui.adapters;
 
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.graphics.Color;
 import android.os.Bundle;
 import android.text.TextUtils;
 import android.util.Log;
@@ -108,13 +121,23 @@ public class EspDeviceAdapter extends RecyclerView.Adapter<EspDeviceAdapter.Devi
             Utils.setDeviceIcon(deviceVh.ivDevice, device.getDeviceType());
         }
 
-        // ===== تطبيق لون الخلفية المخصص =====
+        // ===== تطبيق لون الخلفية المخصص مع تباين النص =====
         int savedColor = DeviceIconManager.getSavedColor(context, _devId);
-        if (savedColor != android.graphics.Color.TRANSPARENT) {
+        if (savedColor != Color.TRANSPARENT) {
             deviceVh.cardView.setCardBackgroundColor(savedColor);
+            // ضبط لون النص حسب تباين الخلفية
+            int textColor = DeviceIconManager.getContrastTextColor(savedColor);
+            deviceVh.tvDeviceName.setTextColor(textColor);
+            deviceVh.tvStringValue.setTextColor(textColor);
+            deviceVh.tvOffline.setTextColor(textColor);
+            // ضبط لون النص في حالة عدم وجود قيمة
         } else {
             // استخدم اللون الافتراضي حسب الحالة (الموجود في setCardBackgroundForDeviceStatus)
             setCardBackgroundForDeviceStatus(deviceVh, node, nodeStatus);
+            // استعادة ألوان النص الافتراضية
+            deviceVh.tvDeviceName.setTextColor(context.getColor(R.color.color_text));
+            deviceVh.tvStringValue.setTextColor(context.getColor(R.color.color_text));
+            deviceVh.tvOffline.setTextColor(context.getColor(R.color.colorAccent));
         }
 
         if (!TextUtils.isEmpty(device.getPrimaryParamName())) {
@@ -505,7 +528,7 @@ public class EspDeviceAdapter extends RecyclerView.Adapter<EspDeviceAdapter.Devi
         }
 
         // Set card background color for device status in dark theme only (إذا لم يكن هناك لون مخصص)
-        if (DeviceIconManager.getSavedColor(context, _devId) == android.graphics.Color.TRANSPARENT) {
+        if (DeviceIconManager.getSavedColor(context, _devId) == Color.TRANSPARENT) {
             setCardBackgroundForDeviceStatus(deviceVh, node, nodeStatus);
         }
 
@@ -602,20 +625,28 @@ public class EspDeviceAdapter extends RecyclerView.Adapter<EspDeviceAdapter.Devi
             }
         });
 
-        // ===== Long-press على البطاقة -> فتح حوار تخصيص (أيقونة + لون خلفية) =====
+        // ===== Long-press على البطاقة -> فتح حوار تخصيص =====
         deviceVh.itemView.setOnLongClickListener(v -> {
             String devId = device.getNodeId() + "_" + device.getDeviceName();
             DeviceIconManager.showCustomizationDialog(context, devId, deviceVh.ivDevice, () -> {
-                // بعد التغيير، نعيد تطبيق الأيقونة واللون على البطاقة
+                // بعد التغيير، نعيد تطبيق الأيقونة واللون على البطاقة مع تباين النص
                 if (!DeviceIconManager.applyIcon(context, devId, deviceVh.ivDevice)) {
                     Utils.setDeviceIcon(deviceVh.ivDevice, device.getDeviceType());
                 }
                 int color = DeviceIconManager.getSavedColor(context, devId);
-                if (color != android.graphics.Color.TRANSPARENT) {
+                if (color != Color.TRANSPARENT) {
                     deviceVh.cardView.setCardBackgroundColor(color);
+                    int textColor = DeviceIconManager.getContrastTextColor(color);
+                    deviceVh.tvDeviceName.setTextColor(textColor);
+                    deviceVh.tvStringValue.setTextColor(textColor);
+                    deviceVh.tvOffline.setTextColor(textColor);
                 } else {
                     // استعادة اللون الافتراضي حسب الحالة
                     setCardBackgroundForDeviceStatus(deviceVh, node, nodeStatus);
+                    // استعادة ألوان النص الافتراضية
+                    deviceVh.tvDeviceName.setTextColor(context.getColor(R.color.color_text));
+                    deviceVh.tvStringValue.setTextColor(context.getColor(R.color.color_text));
+                    deviceVh.tvOffline.setTextColor(context.getColor(R.color.colorAccent));
                 }
             });
             return true;
