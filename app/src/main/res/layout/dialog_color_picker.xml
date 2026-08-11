@@ -9,18 +9,18 @@
     <com.larswerkman.holocolorpicker.ColorPicker
         android:id="@+id/color_picker"
         android:layout_width="match_parent"
-        android:layout_height="250dp"
-        app:color_center_halo_radius="46dp"
-        app:color_center_radius="40dp"
-        app:color_pointer_halo_radius="12dp"
-        app:color_pointer_radius="9dp"
-        app:color_wheel_radius="150dp"
-        app:color_wheel_thickness="35dp" />
+        android:layout_height="200dp"
+        app:color_center_halo_radius="30dp"
+        app:color_center_radius="25dp"
+        app:color_pointer_halo_radius="10dp"
+        app:color_pointer_radius="8dp"
+        app:color_wheel_radius="120dp"
+        app:color_wheel_thickness="22dp" />
 
     <com.larswerkman.holocolorpicker.SVBar
         android:id="@+id/sv_bar"
         android:layout_width="match_parent"
-        android:layout_height="30dp"
-        android:layout_marginTop="16dp" />
+        android:layout_height="22dp"
+        android:layout_marginTop="8dp" />
 
 </LinearLayout>
