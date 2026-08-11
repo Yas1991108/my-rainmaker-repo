@@ -20,9 +20,11 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.os.Bundle;
+import android.os.Handler;
 import android.text.TextUtils;
 import android.util.Log;
 import android.view.LayoutInflater;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageView;
@@ -88,7 +90,6 @@ public class EspDeviceAdapter extends RecyclerView.Adapter<EspDeviceAdapter.Devi
     public void onAttachedToRecyclerView(@NonNull RecyclerView recyclerView) {
         super.onAttachedToRecyclerView(recyclerView);
 
-        // إنشاء ItemTouchHelper للسحب والإفلات
         ItemTouchHelper.Callback callback = new ItemTouchHelper.SimpleCallback(
                 ItemTouchHelper.UP | ItemTouchHelper.DOWN | ItemTouchHelper.LEFT | ItemTouchHelper.RIGHT,
                 0) {
@@ -118,7 +119,7 @@ public class EspDeviceAdapter extends RecyclerView.Adapter<EspDeviceAdapter.Devi
 
             @Override
             public boolean isLongPressDragEnabled() {
-                return false; // نتحكم يدوياً عبر onLongClick
+                return false; // نتحكم يدوياً عبر onTouch
             }
 
             @Override
@@ -128,6 +129,8 @@ public class EspDeviceAdapter extends RecyclerView.Adapter<EspDeviceAdapter.Devi
                     isDragging = true;
                     if (viewHolder != null) {
                         viewHolder.itemView.setAlpha(0.7f);
+                        viewHolder.itemView.setScaleX(1.05f);
+                        viewHolder.itemView.setScaleY(1.05f);
                     }
                 }
             }
@@ -138,6 +141,8 @@ public class EspDeviceAdapter extends RecyclerView.Adapter<EspDeviceAdapter.Devi
                 super.clearView(recyclerView, viewHolder);
                 isDragging = false;
                 viewHolder.itemView.setAlpha(1f);
+                viewHolder.itemView.setScaleX(1f);
+                viewHolder.itemView.setScaleY(1f);
 
                 // حفظ الترتيب الجديد
                 List<String> order = new ArrayList<>();
@@ -177,7 +182,6 @@ public class EspDeviceAdapter extends RecyclerView.Adapter<EspDeviceAdapter.Devi
             deviceName = (node.getNodeMetadata() != null) ? node.getNodeMetadata().getDeviceName() : "";
         }
 
-        // تعيين اسم الجهاز حسب النوع إذا كان فارغاً
         if (TextUtils.isEmpty(deviceName)) {
             if (!TextUtils.isEmpty(device.getUserVisibleName())) {
                 deviceName = device.getUserVisibleName();
@@ -188,11 +192,53 @@ public class EspDeviceAdapter extends RecyclerView.Adapter<EspDeviceAdapter.Devi
 
         deviceVh.tvDeviceName.setText(deviceName);
 
-        // ===== معرف فريد للجهاز (للتخزين) =====
         String devId = device.getNodeId() + "_" + device.getDeviceName();
 
         // ===== تطبيق التخصيصات المحفوظة =====
         applyCustomizations(deviceVh, device, node, nodeStatus, devId);
+
+        // ===== زر التخصيص (ثلاث نقاط) =====
+        deviceVh.btnCustomize.setOnClickListener(v -> {
+            DeviceIconManager.showCustomizationDialog(context, devId, deviceVh.ivDevice, () -> {
+                applyCustomizations(deviceVh, device, node, nodeStatus, devId);
+            });
+        });
+
+        // ===== الضغط المطول للسحب والإفلات =====
+        deviceVh.itemView.setOnTouchListener(new View.OnTouchListener() {
+            private float startX, startY;
+            private boolean isLongPressed = false;
+            private final Handler handler = new Handler();
+            private final Runnable longPressRunnable = () -> {
+                if (touchHelper != null) {
+                    isLongPressed = true;
+                    touchHelper.startDrag(deviceVh);
+                }
+            };
+
+            @Override
+            public boolean onTouch(View v, MotionEvent event) {
+                switch (event.getAction()) {
+                    case MotionEvent.ACTION_DOWN:
+                        startX = event.getX();
+                        startY = event.getY();
+                        isLongPressed = false;
+                        handler.postDelayed(longPressRunnable, 250);
+                        return true;
+                    case MotionEvent.ACTION_MOVE:
+                        if (Math.abs(event.getX() - startX) > 15 || Math.abs(event.getY() - startY) > 15) {
+                            handler.removeCallbacks(longPressRunnable);
+                        }
+                        return true;
+                    case MotionEvent.ACTION_UP:
+                    case MotionEvent.ACTION_CANCEL:
+                        handler.removeCallbacks(longPressRunnable);
+                        // إذا لم يبدأ السحب ولم يكن ضغطاً طويلاً، لا نفعل شيئاً (التخصيص من الزر)
+                        return true;
+                }
+                return false;
+            }
+        });
 
         // ===== عرض المعامل الأساسي =====
         if (!TextUtils.isEmpty(device.getPrimaryParamName())) {
@@ -672,27 +718,6 @@ public class EspDeviceAdapter extends RecyclerView.Adapter<EspDeviceAdapter.Devi
                 }
             }
         });
-
-        // ===== الضغط المطول: تخصيص البطاقة + السحب =====
-        deviceVh.itemView.setOnLongClickListener(new View.OnLongClickListener() {
-            @Override
-            public boolean onLongClick(View v) {
-                if (!isDragging) {
-                    // فتح BottomSheet للتخصيص
-                    DeviceIconManager.showCustomizationDialog(context, devId, deviceVh.ivDevice, () -> {
-                        // إعادة تطبيق التخصيصات بعد التغيير
-                        applyCustomizations(deviceVh, device, node, nodeStatus, devId);
-                    });
-
-                    // بدء السحب (نفس الضغطة المطولة)
-                    if (touchHelper != null) {
-                        touchHelper.startDrag(deviceVh);
-                    }
-                    return true;
-                }
-                return false;
-            }
-        });
     }
 
     // ============================================================
@@ -715,9 +740,7 @@ public class EspDeviceAdapter extends RecyclerView.Adapter<EspDeviceAdapter.Devi
             vh.tvStringValue.setTextColor(textColor);
             vh.tvOffline.setTextColor(textColor);
         } else {
-            // اللون الافتراضي حسب الحالة
             setCardBackgroundForDeviceStatus(vh, node, nodeStatus);
-            // استعادة ألوان النص الافتراضية
             vh.tvDeviceName.setTextColor(context.getColor(R.color.color_text));
             vh.tvStringValue.setTextColor(context.getColor(R.color.color_text));
             vh.tvOffline.setTextColor(context.getColor(R.color.colorAccent));
@@ -728,7 +751,6 @@ public class EspDeviceAdapter extends RecyclerView.Adapter<EspDeviceAdapter.Devi
         DeviceIconManager.CardStyle style = DeviceIconManager.CardStyle.fromId(styleId);
 
         if (style == DeviceIconManager.CardStyle.CIRCLE) {
-            // الدائري: نجعل نصف القطر مساوياً لنصف الارتفاع (يُحسب في وقت العرض)
             vh.cardView.post(() -> {
                 int height = vh.cardView.getHeight();
                 if (height > 0) {
@@ -741,13 +763,11 @@ public class EspDeviceAdapter extends RecyclerView.Adapter<EspDeviceAdapter.Devi
             float density = context.getResources().getDisplayMetrics().density;
             vh.cardView.setRadius(style.radiusDp * density);
         }
-
-        // تحسين الظل
         vh.cardView.setCardElevation(style.radiusDp > 0 ? 8f : 2f);
     }
 
     // ============================================================
-    // تعيين خلفية البطاقة حسب حالة الجهاز (للأوضاع الداكنة)
+    // تعيين خلفية البطاقة حسب حالة الجهاز
     // ============================================================
     private void setCardBackgroundForDeviceStatus(DeviceViewHolder deviceVh, EspNode node, int nodeStatus) {
         int nightModeFlags = context.getResources().getConfiguration().uiMode & android.content.res.Configuration.UI_MODE_NIGHT_MASK;
@@ -882,7 +902,7 @@ public class EspDeviceAdapter extends RecyclerView.Adapter<EspDeviceAdapter.Devi
     static class DeviceViewHolder extends RecyclerView.ViewHolder {
 
         TextView tvDeviceName, tvStringValue, tvOffline;
-        ImageView ivDevice, ivDeviceStatus, ivOffline, ivSecureLocal;
+        ImageView ivDevice, ivDeviceStatus, ivOffline, ivSecureLocal, btnCustomize;
         RelativeLayout llOffline;
         TapHoldUpButton btnTrigger;
         MaterialCardView cardView;
@@ -899,6 +919,7 @@ public class EspDeviceAdapter extends RecyclerView.Adapter<EspDeviceAdapter.Devi
             ivDeviceStatus = itemView.findViewById(R.id.iv_on_off);
             tvStringValue = itemView.findViewById(R.id.tv_string);
             btnTrigger = itemView.findViewById(R.id.btn_trigger);
+            btnCustomize = itemView.findViewById(R.id.btn_customize);
             cardView = (MaterialCardView) itemView;
         }
     }
