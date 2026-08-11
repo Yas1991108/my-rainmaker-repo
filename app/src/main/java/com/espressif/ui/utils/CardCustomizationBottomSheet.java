@@ -1,9 +1,3 @@
-// =============================================================
-// المسار: app/src/main/java/com/espressif/ui/utils/CardCustomizationBottomSheet.java
-// =============================================================
-// BottomSheet لتخصيص البطاقة: لون الخلفية، شكل البطاقة، الأيقونة
-// =============================================================
-
 package com.espressif.ui.utils;
 
 import android.content.Context;
@@ -17,21 +11,21 @@ import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.appcompat.app.AlertDialog;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.espressif.rainmaker.R;
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment;
-import com.google.android.material.card.MaterialCardView;
 import com.larswerkman.holocolorpicker.ColorPicker;
 import com.larswerkman.holocolorpicker.SVBar;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public class CardCustomizationBottomSheet extends BottomSheetDialogFragment {
 
     private static final String ARG_DEVICE_ID = "device_id";
-
     private String deviceId;
     private Runnable onChangedListener;
 
@@ -65,7 +59,69 @@ public class CardCustomizationBottomSheet extends BottomSheetDialogFragment {
         Context ctx = getContext();
         if (ctx == null || deviceId == null) return;
 
-        // ===== 1. عجلة الألوان =====
+        RecyclerView recyclerView = view.findViewById(R.id.rv_options);
+        recyclerView.setLayoutManager(new LinearLayoutManager(ctx));
+
+        // ===== استخدام أيقونات موجودة في المشروع =====
+        List<OptionItem> options = new ArrayList<>();
+        options.add(new OptionItem(R.drawable.ic_info, ctx.getString(R.string.choose_icon), "icon"));
+        options.add(new OptionItem(R.drawable.ic_brightness_high, ctx.getString(R.string.choose_background_color), "color"));
+        options.add(new OptionItem(R.drawable.ic_device, ctx.getString(R.string.choose_card_style), "shape"));
+        options.add(new OptionItem(R.drawable.ic_refresh, ctx.getString(R.string.reset_to_default), "reset"));
+
+        OptionAdapter adapter = new OptionAdapter(options, option -> {
+            switch (option.id) {
+                case "icon":
+                    showIconPicker(ctx);
+                    break;
+                case "color":
+                    showColorPicker(ctx);
+                    break;
+                case "shape":
+                    showShapePicker(ctx);
+                    break;
+                case "reset":
+                    DeviceIconManager.resetDeviceCustomizations(ctx, deviceId);
+                    if (onChangedListener != null) onChangedListener.run();
+                    dismiss();
+                    break;
+            }
+        });
+        recyclerView.setAdapter(adapter);
+    }
+
+    private void showIconPicker(Context ctx) {
+        List<DeviceIconManager.IconOption> icons = DeviceIconManager.getIconOptions();
+        String[] labels = new String[icons.size()];
+        for (int i = 0; i < icons.size(); i++) {
+            labels[i] = icons.get(i).label;
+        }
+
+        int currentIndex = 0;
+        String savedKey = DeviceIconManager.getSavedIconKey(ctx, deviceId);
+        for (int i = 0; i < icons.size(); i++) {
+            if (icons.get(i).key.equals(savedKey)) {
+                currentIndex = i;
+                break;
+            }
+        }
+
+        new AlertDialog.Builder(ctx)
+                .setTitle(R.string.choose_icon)
+                .setSingleChoiceItems(labels, currentIndex, (dialog, which) -> {
+                    DeviceIconManager.saveIconKey(ctx, deviceId, icons.get(which).key);
+                    if (onChangedListener != null) onChangedListener.run();
+                    dialog.dismiss();
+                })
+                .setNegativeButton(R.string.btn_cancel, null)
+                .show();
+    }
+
+    private void showColorPicker(Context ctx) {
+        AlertDialog.Builder builder = new AlertDialog.Builder(ctx);
+        View view = LayoutInflater.from(ctx).inflate(R.layout.dialog_color_picker, null);
+        builder.setView(view);
+
         ColorPicker colorPicker = view.findViewById(R.id.color_picker);
         SVBar svBar = view.findViewById(R.id.sv_bar);
         colorPicker.addSVBar(svBar);
@@ -77,161 +133,91 @@ public class CardCustomizationBottomSheet extends BottomSheetDialogFragment {
             colorPicker.setColor(Color.WHITE);
         }
 
-        colorPicker.setOnColorChangedListener(color -> {
-            DeviceIconManager.saveColor(ctx, deviceId, color);
+        builder.setTitle(R.string.choose_background_color);
+        builder.setPositiveButton(R.string.btn_save, (dialog, which) -> {
+            DeviceIconManager.saveColor(ctx, deviceId, colorPicker.getColor());
             if (onChangedListener != null) onChangedListener.run();
         });
-
-        // ===== 2. اختيار شكل البطاقة =====
-        RecyclerView styleRecycler = view.findViewById(R.id.rv_card_styles);
-        styleRecycler.setLayoutManager(new LinearLayoutManager(ctx, LinearLayoutManager.HORIZONTAL, false));
-        CardStyleAdapter styleAdapter = new CardStyleAdapter(ctx, deviceId, styleId -> {
-            DeviceIconManager.saveCardStyle(ctx, deviceId, styleId);
-            if (onChangedListener != null) onChangedListener.run();
-        });
-        styleRecycler.setAdapter(styleAdapter);
-
-        // ===== 3. اختيار الأيقونة =====
-        RecyclerView iconRecycler = view.findViewById(R.id.rv_icons);
-        iconRecycler.setLayoutManager(new LinearLayoutManager(ctx, LinearLayoutManager.HORIZONTAL, false));
-        IconPickerAdapter iconAdapter = new IconPickerAdapter(ctx, deviceId, iconKey -> {
-            DeviceIconManager.saveIconKey(ctx, deviceId, iconKey);
-            if (onChangedListener != null) onChangedListener.run();
-        });
-        iconRecycler.setAdapter(iconAdapter);
-
-        // ===== 4. زر استعادة الافتراضي =====
-        view.findViewById(R.id.btn_reset_default).setOnClickListener(v -> {
-            DeviceIconManager.resetDeviceCustomizations(ctx, deviceId);
-            if (onChangedListener != null) onChangedListener.run();
-            dismiss();
-        });
+        builder.setNegativeButton(R.string.btn_cancel, null);
+        builder.show();
     }
 
-    // ===== محول أنماط البطاقة =====
-    static class CardStyleAdapter extends RecyclerView.Adapter<CardStyleAdapter.ViewHolder> {
-        private final Context context;
-        private final String deviceId;
-        private final OnStyleSelectedListener listener;
-        private final DeviceIconManager.CardStyle[] styles = DeviceIconManager.CardStyle.values();
-
-        interface OnStyleSelectedListener {
-            void onStyleSelected(int styleId);
+    private void showShapePicker(Context ctx) {
+        DeviceIconManager.CardStyle[] styles = DeviceIconManager.CardStyle.values();
+        String[] labels = new String[styles.length];
+        for (int i = 0; i < styles.length; i++) {
+            labels[i] = styles[i].label;
         }
 
-        CardStyleAdapter(Context context, String deviceId, OnStyleSelectedListener listener) {
-            this.context = context;
-            this.deviceId = deviceId;
+        int currentStyle = DeviceIconManager.getSavedCardStyle(ctx, deviceId);
+
+        new AlertDialog.Builder(ctx)
+                .setTitle(R.string.choose_card_style)
+                .setSingleChoiceItems(labels, currentStyle, (dialog, which) -> {
+                    DeviceIconManager.saveCardStyle(ctx, deviceId, which);
+                    if (onChangedListener != null) onChangedListener.run();
+                    dialog.dismiss();
+                })
+                .setNegativeButton(R.string.btn_cancel, null)
+                .show();
+    }
+
+    static class OptionItem {
+        int iconRes;
+        String title;
+        String id;
+
+        OptionItem(int iconRes, String title, String id) {
+            this.iconRes = iconRes;
+            this.title = title;
+            this.id = id;
+        }
+    }
+
+    static class OptionAdapter extends RecyclerView.Adapter<OptionAdapter.ViewHolder> {
+        private final List<OptionItem> options;
+        private final OnOptionClickListener listener;
+
+        interface OnOptionClickListener {
+            void onOptionClick(OptionItem option);
+        }
+
+        OptionAdapter(List<OptionItem> options, OnOptionClickListener listener) {
+            this.options = options;
             this.listener = listener;
         }
 
         @NonNull
         @Override
         public ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-            View view = LayoutInflater.from(context).inflate(R.layout.item_card_style, parent, false);
+            View view = LayoutInflater.from(parent.getContext())
+                    .inflate(R.layout.item_customization_option, parent, false);
             return new ViewHolder(view);
         }
 
         @Override
         public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
-            DeviceIconManager.CardStyle style = styles[position];
-            holder.tvLabel.setText(style.label);
-
-            // تطبيق الشكل على البطاقة المعاينة
-            float density = context.getResources().getDisplayMetrics().density;
-            int currentStyleId = DeviceIconManager.getSavedCardStyle(context, deviceId);
-            boolean isSelected = currentStyleId == style.id;
-
-            if (style == DeviceIconManager.CardStyle.CIRCLE) {
-                // الدائري يحتاج إلى ارتفاع وعرض متساويين، لكننا نضبطه في المعاينة فقط
-                holder.preview.setRadius(holder.preview.getHeight() / 2f);
-            } else {
-                holder.preview.setRadius(style.radiusDp * density);
-            }
-
-            holder.preview.setCardElevation(isSelected ? 8f : 2f);
-            holder.preview.setStrokeColor(isSelected ?
-                    context.getColor(R.color.colorPrimary) : Color.TRANSPARENT);
-            holder.preview.setStrokeWidth(isSelected ? 4 : 0);
-
+            OptionItem item = options.get(position);
+            holder.ivIcon.setImageResource(item.iconRes);
+            holder.tvTitle.setText(item.title);
             holder.itemView.setOnClickListener(v -> {
-                if (listener != null) listener.onStyleSelected(style.id);
-                notifyDataSetChanged();
+                if (listener != null) listener.onOptionClick(item);
             });
         }
 
         @Override
         public int getItemCount() {
-            return styles.length;
-        }
-
-        static class ViewHolder extends RecyclerView.ViewHolder {
-            TextView tvLabel;
-            MaterialCardView preview;
-
-            ViewHolder(@NonNull View itemView) {
-                super(itemView);
-                tvLabel = itemView.findViewById(R.id.tv_style_label);
-                preview = itemView.findViewById(R.id.card_preview);
-            }
-        }
-    }
-
-    // ===== محول الأيقونات =====
-    static class IconPickerAdapter extends RecyclerView.Adapter<IconPickerAdapter.ViewHolder> {
-        private final Context context;
-        private final String deviceId;
-        private final OnIconSelectedListener listener;
-        private final List<DeviceIconManager.IconOption> icons = DeviceIconManager.getIconOptions();
-
-        interface OnIconSelectedListener {
-            void onIconSelected(String iconKey);
-        }
-
-        IconPickerAdapter(Context context, String deviceId, OnIconSelectedListener listener) {
-            this.context = context;
-            this.deviceId = deviceId;
-            this.listener = listener;
-        }
-
-        @NonNull
-        @Override
-        public ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-            View view = LayoutInflater.from(context).inflate(R.layout.item_icon_picker_row, parent, false);
-            return new ViewHolder(view);
-        }
-
-        @Override
-        public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
-            DeviceIconManager.IconOption icon = icons.get(position);
-            holder.ivIcon.setImageResource(icon.resId);
-            holder.tvLabel.setText(icon.label);
-
-            String saved = DeviceIconManager.getSavedIconKey(context, deviceId);
-            boolean isSelected = icon.key.equals(saved);
-            holder.itemView.setSelected(isSelected);
-            holder.itemView.setBackgroundColor(isSelected ?
-                    context.getColor(R.color.colorPrimary) & 0x33FFFFFF : Color.TRANSPARENT);
-
-            holder.itemView.setOnClickListener(v -> {
-                if (listener != null) listener.onIconSelected(icon.key);
-                notifyDataSetChanged();
-            });
-        }
-
-        @Override
-        public int getItemCount() {
-            return icons.size();
+            return options.size();
         }
 
         static class ViewHolder extends RecyclerView.ViewHolder {
             ImageView ivIcon;
-            TextView tvLabel;
+            TextView tvTitle;
 
             ViewHolder(@NonNull View itemView) {
                 super(itemView);
-                ivIcon = itemView.findViewById(R.id.iv_icon_preview);
-                tvLabel = itemView.findViewById(R.id.tv_icon_label);
+                ivIcon = itemView.findViewById(R.id.iv_option_icon);
+                tvTitle = itemView.findViewById(R.id.tv_option_title);
             }
         }
     }
