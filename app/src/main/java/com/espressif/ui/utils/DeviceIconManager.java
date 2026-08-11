@@ -1,10 +1,3 @@
-// =============================================================
-// المسار: app/src/main/java/com/espressif/ui/utils/DeviceIconManager.java
-// =============================================================
-// يدير تخصيص البطاقات: الأيقونة، لون الخلفية، شكل البطاقة، وترتيب الأجهزة
-// يتم حفظ جميع التخصيصات في SharedPreferences
-// =============================================================
-
 package com.espressif.ui.utils;
 
 import android.content.Context;
@@ -27,15 +20,12 @@ public class DeviceIconManager {
     private static final String KEY_ORDER = "device_order";
     private static final String KEY_CARD_STYLE = "card_style_";
 
-    // ============================================================
-    // تعريف أنماط البطاقة
-    // ============================================================
     public enum CardStyle {
         RECTANGLE(0, "مستطيل", 0),
         ROUNDED_SMALL(1, "مدور صغير", 8),
         ROUNDED_MEDIUM(2, "مدور متوسط", 16),
         ROUNDED_LARGE(3, "مدور كبير", 28),
-        CIRCLE(4, "دائري", -1); // -1 يعني دائري كامل
+        CIRCLE(4, "دائري", -1);
 
         public final int id;
         public final String label;
@@ -53,19 +43,8 @@ public class DeviceIconManager {
             }
             return RECTANGLE;
         }
-
-        public static String[] getLabels() {
-            String[] labels = new String[values().length];
-            for (int i = 0; i < values().length; i++) {
-                labels[i] = values()[i].label;
-            }
-            return labels;
-        }
     }
 
-    // ============================================================
-    // أيقونات الجهاز المتاحة
-    // ============================================================
     public static class IconOption {
         public final int resId;
         public final String label;
@@ -93,9 +72,6 @@ public class DeviceIconManager {
         return options;
     }
 
-    // ============================================================
-    // حفظ واسترجاع الأيقونة
-    // ============================================================
     public static void saveIconKey(Context ctx, String deviceId, String iconKey) {
         ctx.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
                 .edit()
@@ -120,9 +96,6 @@ public class DeviceIconManager {
         return false;
     }
 
-    // ============================================================
-    // حفظ واسترجاع لون الخلفية
-    // ============================================================
     public static void saveColor(Context ctx, String deviceId, int color) {
         ctx.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
                 .edit()
@@ -135,9 +108,6 @@ public class DeviceIconManager {
                 .getInt(KEY_COLOR_PREFIX + deviceId, Color.TRANSPARENT);
     }
 
-    // ============================================================
-    // حساب تباين النص
-    // ============================================================
     public static boolean isColorDark(int color) {
         double brightness = (0.299 * Color.red(color) + 0.587 * Color.green(color) + 0.114 * Color.blue(color));
         return brightness < 128;
@@ -147,9 +117,6 @@ public class DeviceIconManager {
         return isColorDark(backgroundColor) ? Color.WHITE : Color.BLACK;
     }
 
-    // ============================================================
-    // حفظ واسترجاع شكل البطاقة
-    // ============================================================
     public static void saveCardStyle(Context ctx, String deviceId, int styleId) {
         ctx.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
                 .edit()
@@ -162,9 +129,6 @@ public class DeviceIconManager {
                 .getInt(KEY_CARD_STYLE + deviceId, CardStyle.RECTANGLE.id);
     }
 
-    // ============================================================
-    // حفظ واسترجاع ترتيب الأجهزة
-    // ============================================================
     public static void saveDeviceOrder(Context ctx, List<String> deviceIds) {
         Gson gson = new Gson();
         String json = gson.toJson(deviceIds);
@@ -183,9 +147,15 @@ public class DeviceIconManager {
         return order != null ? order : new ArrayList<>();
     }
 
-    // ============================================================
-    // فتح حوار التخصيص (يُستدعى من EspDeviceAdapter)
-    // ============================================================
+    public static void resetDeviceCustomizations(Context ctx, String deviceId) {
+        ctx.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                .edit()
+                .remove(KEY_ICON_PREFIX + deviceId)
+                .remove(KEY_COLOR_PREFIX + deviceId)
+                .remove(KEY_CARD_STYLE + deviceId)
+                .apply();
+    }
+
     public static void showCustomizationDialog(Context ctx, String deviceId,
                                                android.widget.ImageView ivDevice,
                                                Runnable onChanged) {
@@ -195,17 +165,5 @@ public class DeviceIconManager {
         });
         bottomSheet.show(((androidx.appcompat.app.AppCompatActivity) ctx).getSupportFragmentManager(),
                 "card_customization");
-    }
-
-    // ============================================================
-    // مسح تخصيصات جهاز معين (استعادة الافتراضي)
-    // ============================================================
-    public static void resetDeviceCustomizations(Context ctx, String deviceId) {
-        ctx.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-                .edit()
-                .remove(KEY_ICON_PREFIX + deviceId)
-                .remove(KEY_COLOR_PREFIX + deviceId)
-                .remove(KEY_CARD_STYLE + deviceId)
-                .apply();
     }
 }
