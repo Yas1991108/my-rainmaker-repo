@@ -59,15 +59,15 @@ public class CardCustomizationBottomSheet extends BottomSheetDialogFragment {
         Context ctx = getContext();
         if (ctx == null || deviceId == null) return;
 
-        // قائمة الخيارات العمودية
         RecyclerView recyclerView = view.findViewById(R.id.rv_options);
         recyclerView.setLayoutManager(new LinearLayoutManager(ctx));
 
+        // ===== استخدام أيقونات موجودة في المشروع =====
         List<OptionItem> options = new ArrayList<>();
-        options.add(new OptionItem(R.drawable.ic_icon, ctx.getString(R.string.choose_icon), "icon"));
-        options.add(new OptionItem(R.drawable.ic_color, ctx.getString(R.string.choose_background_color), "color"));
-        options.add(new OptionItem(R.drawable.ic_shape, ctx.getString(R.string.choose_card_style), "shape"));
-        options.add(new OptionItem(R.drawable.ic_reset, ctx.getString(R.string.reset_to_default), "reset"));
+        options.add(new OptionItem(R.drawable.ic_info, ctx.getString(R.string.choose_icon), "icon"));
+        options.add(new OptionItem(R.drawable.ic_brightness_high, ctx.getString(R.string.choose_background_color), "color"));
+        options.add(new OptionItem(R.drawable.ic_device, ctx.getString(R.string.choose_card_style), "shape"));
+        options.add(new OptionItem(R.drawable.ic_refresh, ctx.getString(R.string.reset_to_default), "reset"));
 
         OptionAdapter adapter = new OptionAdapter(options, option -> {
             switch (option.id) {
@@ -90,7 +90,6 @@ public class CardCustomizationBottomSheet extends BottomSheetDialogFragment {
         recyclerView.setAdapter(adapter);
     }
 
-    // ===== اختيار الأيقونة =====
     private void showIconPicker(Context ctx) {
         List<DeviceIconManager.IconOption> icons = DeviceIconManager.getIconOptions();
         String[] labels = new String[icons.size()];
@@ -118,7 +117,6 @@ public class CardCustomizationBottomSheet extends BottomSheetDialogFragment {
                 .show();
     }
 
-    // ===== اختيار اللون =====
     private void showColorPicker(Context ctx) {
         AlertDialog.Builder builder = new AlertDialog.Builder(ctx);
         View view = LayoutInflater.from(ctx).inflate(R.layout.dialog_color_picker, null);
@@ -144,7 +142,6 @@ public class CardCustomizationBottomSheet extends BottomSheetDialogFragment {
         builder.show();
     }
 
-    // ===== اختيار شكل البطاقة =====
     private void showShapePicker(Context ctx) {
         DeviceIconManager.CardStyle[] styles = DeviceIconManager.CardStyle.values();
         String[] labels = new String[styles.length];
@@ -165,7 +162,6 @@ public class CardCustomizationBottomSheet extends BottomSheetDialogFragment {
                 .show();
     }
 
-    // ===== نماذج القائمة =====
     static class OptionItem {
         int iconRes;
         String title;
