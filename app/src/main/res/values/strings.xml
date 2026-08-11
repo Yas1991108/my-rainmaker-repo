@@ -665,8 +665,7 @@
     <string name="sound_theme_smart_desc">Subtle notification-style sounds</string>
     <string name="sound_theme_silent_desc">No sounds</string>
 
-    <!-- ===== إضافات تخصيص البطاقة ===== -->
- 
+<!-- ===== Card Customization ===== -->
 <string name="customize_card">Customize Card</string>
 <string name="choose_icon">Choose Icon</string>
 <string name="choose_background_color">Choose Background Color</string>
@@ -681,5 +680,6 @@
 <string name="card_style_rounded_large">Rounded Large</string>
 <string name="card_style_circle">Circle</string>
 
+<string name="long_press_to_reorder">Press and hold to drag and reorder</string>
 
 </resources>
