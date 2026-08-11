@@ -411,7 +411,7 @@
     <string name="sound_theme_smart_desc">أصوات إشعارات خفيفة</string>
     <string name="sound_theme_silent_desc">بدون أصوات</string>
 
-    <!-- ===== تخصيص البطاقة ===== -->
+<!-- ===== تخصيص البطاقة ===== -->
 <string name="customize_card">تخصيص البطاقة</string>
 <string name="choose_icon">اختيار أيقونة</string>
 <string name="choose_background_color">اختيار لون الخلفية</string>
@@ -426,4 +426,5 @@
 <string name="card_style_rounded_large">مدور كبير</string>
 <string name="card_style_circle">دائري</string>
 
+<string name="long_press_to_reorder">اضغط مطولاً لسحب البطاقة وتغيير ترتيبها</string>
     </resources>
